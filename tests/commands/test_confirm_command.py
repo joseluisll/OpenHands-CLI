@@ -39,7 +39,7 @@ def runner_enabled() -> ConversationRunner:
     "start_enabled, confirmation_mode, expected_enabled, expected_policy_cls",
     [
         # disabled -> enable
-        (False, "always", True, AlwaysConfirm),
+        (False, "always-approve", True, AlwaysConfirm),
         # enabled -> disable
         (True, None, False, NeverConfirm),
     ],
@@ -99,7 +99,7 @@ def test_maintains_conversation_id_across_toggles(runner_disabled: ConversationR
         assert runner_disabled.conversation.id == CONV_ID
         mock_setup.assert_has_calls(
             [
-                call(CONV_ID, confirmation_mode="always"),
+                call(CONV_ID, confirmation_mode="always-approve"),
                 call(CONV_ID),
             ],
             any_order=False,
@@ -139,9 +139,9 @@ def test_rapid_alternating_toggles_produce_expected_states(
 
         mock_setup.assert_has_calls(
             [
-                call(CONV_ID, confirmation_mode="always"),
+                call(CONV_ID, confirmation_mode="always-approve"),
                 call(CONV_ID),
-                call(CONV_ID, confirmation_mode="always"),
+                call(CONV_ID, confirmation_mode="always-approve"),
                 call(CONV_ID),
             ],
             any_order=False,
