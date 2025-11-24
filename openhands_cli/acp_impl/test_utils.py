@@ -122,7 +122,7 @@ def test_jsonrpc_messages(
         [executable_path] + args,
         stdin=subprocess.PIPE,
         stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
+        stderr=subprocess.DEVNULL,  # Don't pipe stderr to avoid buffer blocking
         text=True,
         bufsize=1,
     )
