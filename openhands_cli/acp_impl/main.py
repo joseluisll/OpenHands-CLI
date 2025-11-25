@@ -17,10 +17,5 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
-async def run_acp_agent() -> None:
-    """Run the ACP agent server (alias for run_acp_server)."""
-    await run_acp_server()
-
-
 if __name__ == "__main__":
     asyncio.run(run_acp_server())

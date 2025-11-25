@@ -40,9 +40,9 @@ def main() -> None:
         elif args.command == "acp":
             import asyncio
 
-            from openhands_cli.acp_impl.main import run_acp_agent
+            from openhands_cli.acp_impl.agent import run_acp_server
 
-            asyncio.run(run_acp_agent())
+            asyncio.run(run_acp_server())
         else:
             # Default CLI behavior - no subcommand needed
             # Import agent_chat only when needed
