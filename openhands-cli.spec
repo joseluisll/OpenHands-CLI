@@ -62,7 +62,7 @@ a = Analysis(
     ],
     hookspath=[],
     hooksconfig={},
-    runtime_hooks=[str(project_root / "hooks" / "rthook_filter_syspath.py")],
+    runtime_hooks=[],
     excludes=[
         # Exclude unnecessary modules to reduce binary size
         'tkinter',
