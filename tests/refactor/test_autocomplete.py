@@ -421,3 +421,19 @@ class TestEnhancedAutoComplete:
 
         # Should return empty list for non-existent directory
         assert candidates == []
+
+    def test_should_show_dropdown_override_exists(self):
+        """Test that should_show_dropdown method is overridden."""
+        mock_input = mock.MagicMock(spec=Input)
+        autocomplete = EnhancedAutoComplete(mock_input, command_candidates=COMMANDS)
+
+        # Verify the method exists and is overridden
+        assert hasattr(autocomplete, "should_show_dropdown")
+        assert callable(autocomplete.should_show_dropdown)
+
+        # Verify it's our override, not the base class method
+        from textual_autocomplete import AutoComplete
+
+        base_method = AutoComplete.should_show_dropdown
+        enhanced_method = EnhancedAutoComplete.should_show_dropdown
+        assert base_method != enhanced_method

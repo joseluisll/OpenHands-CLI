@@ -6,6 +6,7 @@ including suffix-style descriptions and smart completion logic.
 
 from pathlib import Path
 
+from rich.text import Text
 from textual_autocomplete import AutoComplete, DropdownItem, TargetState
 
 from openhands_cli.locations import WORK_DIR
@@ -172,6 +173,28 @@ class EnhancedAutoComplete(AutoComplete):
                 return path_part
         else:
             return ""
+
+    def should_show_dropdown(self, search_string: str) -> bool:
+        """Override to show dropdown even with empty search string for @ and /."""
+        option_list = self.option_list
+        option_count = option_list.option_count
+
+        # If no options, don't show dropdown
+        if option_count == 0:
+            return False
+
+        # For our enhanced autocomplete, show dropdown even with empty search string
+        # This allows immediate display when typing @ or completing folders with /
+        if option_count == 1:
+            first_option = option_list.get_option_at_index(0).prompt
+            text_from_option = (
+                first_option.plain if isinstance(first_option, Text) else first_option
+            )
+            # Don't show if the single option exactly matches what's already typed
+            return text_from_option != search_string
+        else:
+            # Show dropdown if we have multiple options, regardless of search string
+            return True
 
     def apply_completion(self, value: str, state) -> None:  # noqa: ARG002
         """Apply completion based on the type of completion."""
