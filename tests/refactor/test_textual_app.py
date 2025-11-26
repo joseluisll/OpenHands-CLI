@@ -6,11 +6,9 @@ import pytest
 from textual.widgets import Input, RichLog
 from textual_autocomplete import AutoComplete, TargetState
 
-from openhands_cli.refactor.textual_app import (
-    COMMANDS,
-    CommandAutoComplete,
-    OpenHandsApp,
-)
+from openhands_cli.refactor.autocomplete import CommandAutoComplete
+from openhands_cli.refactor.commands import COMMANDS, show_help
+from openhands_cli.refactor.textual_app import OpenHandsApp
 
 
 class TestOpenHandsApp:
@@ -434,14 +432,11 @@ class TestCommandsAndAutocomplete:
 
     def test_show_help_content(self):
         """Test that help content contains expected information."""
-        app = OpenHandsApp()
-
-        # Mock the query_one method
+        # Mock the RichLog widget
         mock_richlog = mock.MagicMock(spec=RichLog)
-        app.query_one = mock.MagicMock(return_value=mock_richlog)
 
-        # Call the help method
-        app._show_help()
+        # Call the help function directly
+        show_help(mock_richlog)
 
         # Check help content
         help_text = mock_richlog.write.call_args[0][0]
