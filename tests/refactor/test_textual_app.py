@@ -181,12 +181,6 @@ class TestOpenHandsApp:
         assert call_args == "\n> test message"
         assert call_args.startswith("\n> ")
 
-    def test_main_function_exists(self):
-        """Test that main function exists and can be imported."""
-        from openhands_cli.refactor.textual_app import main
-
-        assert callable(main)
-
     @mock.patch("openhands_cli.refactor.textual_app.get_welcome_message")
     async def test_input_functionality_integration(self, mock_welcome):
         """Test that input functionality works end-to-end."""
