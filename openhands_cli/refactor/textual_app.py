@@ -13,6 +13,7 @@ from textual.widgets import Input, RichLog
 
 from openhands_cli.refactor.autocomplete import EnhancedAutoComplete
 from openhands_cli.refactor.commands import COMMANDS, is_valid_command, show_help
+from openhands_cli.refactor.exit_modal import ExitConfirmationModal
 from openhands_cli.refactor.splash import get_welcome_message
 from openhands_cli.refactor.theme import OPENHANDS_THEME
 
@@ -133,13 +134,7 @@ class OpenHandsApp(App):
 
     def _handle_exit(self) -> None:
         """Handle exit command with confirmation."""
-        # For now, just show a message and exit
-        # TODO: Add proper confirmation dialog
-        main_display = self.query_one("#main_display", RichLog)
-        main_display.write(
-            f"\n[{OPENHANDS_THEME.primary}]Goodbye! 👋[/{OPENHANDS_THEME.primary}]"
-        )
-        self.exit()
+        self.push_screen(ExitConfirmationModal())
 
 
 def main():

@@ -65,22 +65,81 @@ class TestCommandsAndAutocomplete:
         assert "/exit" in help_text
 
     def test_handle_command_exit(self):
-        """Test that /exit command exits the app."""
+        """Test that /exit command shows confirmation modal."""
         app = OpenHandsApp()
 
-        # Mock the query_one method and exit method
+        # Mock the query_one method and push_screen method
         mock_richlog = mock.MagicMock(spec=RichLog)
         app.query_one = mock.MagicMock(return_value=mock_richlog)
-        app.exit = mock.MagicMock()
+        app.push_screen = mock.MagicMock()
 
         # Call the command handler
         app._handle_command("/exit")
 
-        # Check that goodbye message was written and app exits
-        mock_richlog.write.assert_called_once()
-        goodbye_text = mock_richlog.write.call_args[0][0]
-        assert "Goodbye!" in goodbye_text
-        app.exit.assert_called_once()
+        # Check that modal screen was pushed
+        app.push_screen.assert_called_once()
+        # Verify the argument is an ExitConfirmationModal instance
+        modal_arg = app.push_screen.call_args[0][0]
+        from openhands_cli.refactor.exit_modal import ExitConfirmationModal
+
+        assert isinstance(modal_arg, ExitConfirmationModal)
+
+    def test_exit_confirmation_modal(self):
+        """Test that ExitConfirmationModal works correctly."""
+        from textual.containers import Grid
+
+        from openhands_cli.refactor.exit_modal import ExitConfirmationModal
+
+        # Create modal instance
+        modal = ExitConfirmationModal()
+
+        # Test compose method
+        compose_result = list(modal.compose())
+        assert len(compose_result) == 1
+
+        # Check that it has a Grid container
+        grid = compose_result[0]
+        assert isinstance(grid, Grid)
+        assert grid.id == "dialog"
+
+        # Test CSS is defined
+        assert hasattr(modal, "DEFAULT_CSS")
+        assert "ExitConfirmationModal" in modal.DEFAULT_CSS
+        assert "#dialog" in modal.DEFAULT_CSS
+
+    def test_exit_modal_button_handling(self):
+        """Test that modal button handling logic is correct."""
+        from unittest import mock
+
+        from textual.widgets import Button
+
+        from openhands_cli.refactor.exit_modal import ExitConfirmationModal
+
+        modal = ExitConfirmationModal()
+
+        # Create a mock app and manually set it
+        mock_app = mock.MagicMock()
+
+        # Patch the app property to return our mock
+        with mock.patch.object(
+            type(modal), "app", new_callable=mock.PropertyMock
+        ) as mock_app_prop:
+            mock_app_prop.return_value = mock_app
+
+            # Test "yes" button - should exit app
+            yes_button = Button("Yes", id="yes")
+            yes_event = Button.Pressed(yes_button)
+            modal.on_button_pressed(yes_event)
+            mock_app.exit.assert_called_once()
+
+            # Reset mock
+            mock_app.reset_mock()
+
+            # Test "no" button - should pop screen
+            no_button = Button("No", id="no")
+            no_event = Button.Pressed(no_button)
+            modal.on_button_pressed(no_event)
+            mock_app.pop_screen.assert_called_once()
 
     def test_handle_command_unknown(self):
         """Test that unknown commands show error message."""
