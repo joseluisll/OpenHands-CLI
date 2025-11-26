@@ -12,7 +12,7 @@ from textual.containers import Container
 from textual.widgets import Input, RichLog
 
 from openhands_cli.refactor.autocomplete import EnhancedAutoComplete
-from openhands_cli.refactor.commands import COMMANDS, show_help
+from openhands_cli.refactor.commands import COMMANDS, is_valid_command, show_help
 from openhands_cli.refactor.splash import get_welcome_message
 from openhands_cli.refactor.theme import OPENHANDS_THEME
 
@@ -110,8 +110,8 @@ class OpenHandsApp(App):
             main_display = self.query_one("#main_display", RichLog)
             main_display.write(f"\n> {user_message}")
 
-            # Handle commands
-            if user_message.startswith("/"):
+            # Handle commands - only exact matches
+            if is_valid_command(user_message):
                 self._handle_command(user_message)
             else:
                 # Handle regular messages (placeholder for now)

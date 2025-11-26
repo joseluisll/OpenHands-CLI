@@ -10,7 +10,12 @@ from openhands_cli.refactor.autocomplete import (
     CommandAutoComplete,
     EnhancedAutoComplete,
 )
-from openhands_cli.refactor.commands import COMMANDS, show_help
+from openhands_cli.refactor.commands import (
+    COMMANDS,
+    get_valid_commands,
+    is_valid_command,
+    show_help,
+)
 from openhands_cli.refactor.textual_app import OpenHandsApp
 
 
@@ -161,6 +166,100 @@ class TestCommandsAndAutocomplete:
         assert "Exit the application" in help_text
         assert "Tips:" in help_text
         assert "Type / and press Tab" in help_text
+
+    def test_exact_command_matching_valid_commands(self):
+        """Test that exact command matches are treated as commands."""
+        app = OpenHandsApp()
+
+        # Mock the query_one method
+        mock_richlog = mock.MagicMock(spec=RichLog)
+        app.query_one = mock.MagicMock(return_value=mock_richlog)
+        app._handle_command = mock.MagicMock()
+
+        # Test exact command matches
+        valid_commands = ["/help", "/exit"]
+
+        for command in valid_commands:
+            mock_event = mock.MagicMock()
+            mock_event.value = command
+            mock_event.input.value = command
+
+            app.on_input_submitted(mock_event)
+
+            # Should call _handle_command for exact matches
+            app._handle_command.assert_called_with(command)
+
+            # Reset mock for next iteration
+            app._handle_command.reset_mock()
+
+    def test_exact_command_matching_invalid_commands(self):
+        """Test that non-exact matches are treated as regular messages."""
+        app = OpenHandsApp()
+
+        # Mock the query_one method
+        mock_richlog = mock.MagicMock(spec=RichLog)
+        app.query_one = mock.MagicMock(return_value=mock_richlog)
+        app._handle_command = mock.MagicMock()
+
+        # Test inputs that start with / but are not exact command matches
+        invalid_commands = [
+            "/help hello",  # Command with extra text
+            "/exit now",  # Command with extra text
+            "/help-me",  # Command with suffix
+            "/unknown",  # Unknown command
+            "/",  # Just slash
+            "/ help",  # Slash with space
+            "/HELP",  # Wrong case
+        ]
+
+        for invalid_command in invalid_commands:
+            mock_event = mock.MagicMock()
+            mock_event.value = invalid_command
+            mock_event.input.value = invalid_command
+
+            # Reset mocks
+            mock_richlog.reset_mock()
+            app._handle_command.reset_mock()
+
+            app.on_input_submitted(mock_event)
+
+            # Should NOT call _handle_command for non-exact matches
+            app._handle_command.assert_not_called()
+
+            # Should be treated as regular message instead
+            # Check that user message was written (first call)
+            assert mock_richlog.write.call_count >= 1
+            first_call = mock_richlog.write.call_args_list[0][0][0]
+            assert first_call == f"\n> {invalid_command}"
+
+    def test_get_valid_commands(self):
+        """Test that get_valid_commands extracts command names correctly."""
+        valid_commands = get_valid_commands()
+
+        # Should be a set
+        assert isinstance(valid_commands, set)
+
+        # Should contain expected commands
+        assert "/help" in valid_commands
+        assert "/exit" in valid_commands
+
+        # Should have correct count
+        assert len(valid_commands) == 2
+
+    def test_is_valid_command(self):
+        """Test that is_valid_command correctly identifies valid commands."""
+        # Valid commands
+        assert is_valid_command("/help") is True
+        assert is_valid_command("/exit") is True
+
+        # Invalid commands
+        assert is_valid_command("/help hello") is False
+        assert is_valid_command("/exit now") is False
+        assert is_valid_command("/unknown") is False
+        assert is_valid_command("/") is False
+        assert is_valid_command("/HELP") is False
+        assert is_valid_command("help") is False
+        assert is_valid_command("") is False
 
     @pytest.mark.parametrize(
         "completion_value,expected_command",

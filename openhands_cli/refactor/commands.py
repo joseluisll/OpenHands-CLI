@@ -17,6 +17,36 @@ COMMANDS = [
 ]
 
 
+def get_valid_commands() -> set[str]:
+    """Extract valid command names from COMMANDS list.
+
+    Returns:
+        Set of valid command strings (e.g., {"/help", "/exit"})
+    """
+    valid_commands = set()
+    for command_item in COMMANDS:
+        command_text = str(command_item.main)
+        # Extract command part (before " - " if present)
+        if " - " in command_text:
+            command = command_text.split(" - ")[0]
+        else:
+            command = command_text
+        valid_commands.add(command)
+    return valid_commands
+
+
+def is_valid_command(user_input: str) -> bool:
+    """Check if user input is an exact match for a valid command.
+
+    Args:
+        user_input: The user's input string
+
+    Returns:
+        True if input exactly matches a valid command, False otherwise
+    """
+    return user_input in get_valid_commands()
+
+
 def show_help(main_display: RichLog) -> None:
     """Display help information in the main display.
 
