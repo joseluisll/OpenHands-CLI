@@ -4,9 +4,13 @@ import unittest.mock as mock
 
 import pytest
 from textual.widgets import Input, RichLog
-from textual_autocomplete import AutoComplete
+from textual_autocomplete import AutoComplete, TargetState
 
-from openhands_cli.refactor.textual_app import COMMANDS, OpenHandsApp
+from openhands_cli.refactor.textual_app import (
+    COMMANDS,
+    CommandAutoComplete,
+    OpenHandsApp,
+)
 
 
 class TestOpenHandsApp:
@@ -199,12 +203,12 @@ class TestOpenHandsApp:
 
         app = OpenHandsApp()
         async with app.run_test() as pilot:
-            # Type a message
-            await pilot.press("h", "e", "l", "l", "o")
+            # Type a message (avoid words that trigger autocomplete)
+            await pilot.press("t", "e", "s", "t")
 
             # Get the input widget
             user_input = pilot.app.query_one("#user_input", Input)
-            assert user_input.value == "hello"
+            assert user_input.value == "test"
 
             # Submit the input
             await pilot.press("enter")
@@ -306,21 +310,24 @@ class TestCommandsAndAutocomplete:
         assert isinstance(COMMANDS, list)
         assert len(COMMANDS) == 2
 
-        # Check command names
+        # Check command names (now include descriptions)
         command_names = [str(cmd.main) for cmd in COMMANDS]
-        assert "/help" in command_names
-        assert "/exit" in command_names
+        assert "/help - Display available commands" in command_names
+        assert "/exit - Exit the application" in command_names
 
     @mock.patch("openhands_cli.refactor.textual_app.get_welcome_message")
     async def test_autocomplete_widget_exists(self, mock_welcome):
-        """Test that AutoComplete widget is created."""
+        """Test that CommandAutoComplete widget is created."""
         mock_welcome.return_value = "test"
 
         app = OpenHandsApp()
         async with app.run_test() as pilot:
-            # Check that AutoComplete widget exists
-            autocomplete = pilot.app.query_one(AutoComplete)
-            assert isinstance(autocomplete, AutoComplete)
+            # Check that CommandAutoComplete widget exists
+            autocomplete = pilot.app.query_one(CommandAutoComplete)
+            assert isinstance(autocomplete, CommandAutoComplete)
+            assert isinstance(
+                autocomplete, AutoComplete
+            )  # Should also be an AutoComplete
 
     def test_handle_command_help(self):
         """Test that /help command displays help information."""
@@ -445,3 +452,29 @@ class TestCommandsAndAutocomplete:
         assert "Exit the application" in help_text
         assert "Tips:" in help_text
         assert "Type / and press Tab" in help_text
+
+    def test_command_autocomplete_completion_behavior(self):
+        """Test that CommandAutoComplete only completes the command part."""
+        # Create a mock input widget
+        mock_input = mock.MagicMock(spec=Input)
+
+        # Create CommandAutoComplete instance
+        autocomplete = CommandAutoComplete(target=mock_input, candidates=COMMANDS)
+
+        # Create a mock state
+        mock_state = TargetState(text="", cursor_position=0)
+
+        # Test completion with description
+        autocomplete.apply_completion("/help - Display available commands", mock_state)
+
+        # Should clear value and insert command part
+        assert mock_input.value == ""
+        mock_input.insert_text_at_cursor.assert_called_with("/help")
+
+        # Test completion without description (fallback)
+        mock_input.reset_mock()
+        autocomplete.apply_completion("/help", mock_state)
+
+        # Should clear value and insert full value when no description separator
+        assert mock_input.value == ""
+        mock_input.insert_text_at_cursor.assert_called_with("/help")

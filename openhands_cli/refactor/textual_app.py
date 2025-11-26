@@ -16,10 +16,27 @@ from openhands_cli.refactor.splash import get_welcome_message
 from openhands_cli.refactor.theme import OPENHANDS_THEME
 
 
-# Available commands with descriptions (starting with basic set)
+class CommandAutoComplete(AutoComplete):
+    """Custom AutoComplete showing descriptions after commands, completing command."""
+
+    def apply_completion(self, value: str, state) -> None:  # noqa: ARG002
+        """Apply completion, but only insert the command part (before the ' - ')."""
+        # Extract just the command part (before the description)
+        if " - " in value:
+            command_only = value.split(" - ")[0]
+        else:
+            command_only = value
+
+        # Apply the command-only completion to the target input
+        if self.target:
+            self.target.value = ""
+            self.target.insert_text_at_cursor(command_only)
+
+
+# Available commands with descriptions after the command
 COMMANDS = [
-    DropdownItem(main="/help", prefix="Display available commands"),
-    DropdownItem(main="/exit", prefix="Exit the application"),
+    DropdownItem(main="/help - Display available commands"),
+    DropdownItem(main="/exit - Exit the application"),
 ]
 
 
@@ -96,7 +113,7 @@ class OpenHandsApp(App):
             yield text_input
 
             # Add autocomplete for the input
-            yield AutoComplete(text_input, candidates=COMMANDS)
+            yield CommandAutoComplete(text_input, candidates=COMMANDS)
 
     def on_mount(self) -> None:
         """Called when app starts."""
