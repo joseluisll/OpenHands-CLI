@@ -64,9 +64,12 @@ class TestCommandsAndAutocomplete:
         assert "/help" in help_text
         assert "/exit" in help_text
 
-    def test_handle_command_exit(self):
-        """Test that /exit command shows confirmation modal."""
-        app = OpenHandsApp()
+    def test_handle_command_exit_with_confirmation(self):
+        """Test that /exit command shows confirmation modal.
+
+        When exit_confirmation=True.
+        """
+        app = OpenHandsApp(exit_confirmation=True)
 
         # Mock the query_one method and push_screen method
         mock_richlog = mock.MagicMock(spec=RichLog)
@@ -79,6 +82,38 @@ class TestCommandsAndAutocomplete:
         # Check that modal screen was pushed
         app.push_screen.assert_called_once()
         # Verify the argument is an ExitConfirmationModal instance
+        modal_arg = app.push_screen.call_args[0][0]
+        from openhands_cli.refactor.exit_modal import ExitConfirmationModal
+
+        assert isinstance(modal_arg, ExitConfirmationModal)
+
+    def test_handle_command_exit_without_confirmation(self):
+        """Test that /exit command exits immediately when exit_confirmation=False."""
+        app = OpenHandsApp(exit_confirmation=False)
+
+        # Mock the query_one method and exit method
+        mock_richlog = mock.MagicMock(spec=RichLog)
+        app.query_one = mock.MagicMock(return_value=mock_richlog)
+        app.exit = mock.MagicMock()
+
+        # Call the command handler
+        app._handle_command("/exit")
+
+        # Check that app exits immediately
+        app.exit.assert_called_once()
+
+    def test_ctrl_q_binding(self):
+        """Test that Ctrl+Q binding triggers exit handling."""
+        app = OpenHandsApp(exit_confirmation=True)
+
+        # Mock the push_screen method
+        app.push_screen = mock.MagicMock()
+
+        # Call the action directly
+        app.action_request_quit()
+
+        # Check that modal screen was pushed
+        app.push_screen.assert_called_once()
         modal_arg = app.push_screen.call_args[0][0]
         from openhands_cli.refactor.exit_modal import ExitConfirmationModal
 

@@ -7,6 +7,8 @@ It creates a basic app with:
 - The splash screen content scrolls off as new messages are added
 """
 
+from typing import ClassVar
+
 from textual.app import App, ComposeResult
 from textual.containers import Container
 from textual.widgets import Input, RichLog
@@ -21,9 +23,22 @@ from openhands_cli.refactor.theme import OPENHANDS_THEME
 class OpenHandsApp(App):
     """A minimal textual app for OpenHands CLI with scrollable main display."""
 
-    def __init__(self, **kwargs):
-        """Initialize the app with custom OpenHands theme."""
+    # Key bindings
+    BINDINGS: ClassVar = [
+        ("ctrl+q", "request_quit", "Quit"),
+    ]
+
+    def __init__(self, exit_confirmation: bool = True, **kwargs):
+        """Initialize the app with custom OpenHands theme.
+
+        Args:
+            exit_confirmation: If True, show confirmation modal before exit.
+                             If False, exit immediately.
+        """
         super().__init__(**kwargs)
+
+        # Store exit confirmation setting
+        self.exit_confirmation = exit_confirmation
 
         # Register the custom theme
         self.register_theme(OPENHANDS_THEME)
@@ -132,9 +147,16 @@ class OpenHandsApp(App):
         else:
             main_display.write(f"Unknown command: {command}")
 
+    def action_request_quit(self) -> None:
+        """Action to handle Ctrl+Q key binding."""
+        self._handle_exit()
+
     def _handle_exit(self) -> None:
-        """Handle exit command with confirmation."""
-        self.push_screen(ExitConfirmationModal())
+        """Handle exit command with optional confirmation."""
+        if self.exit_confirmation:
+            self.push_screen(ExitConfirmationModal())
+        else:
+            self.exit()
 
 
 def main():

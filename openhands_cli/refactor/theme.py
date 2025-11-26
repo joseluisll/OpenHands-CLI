@@ -16,7 +16,7 @@ def create_openhands_theme() -> Theme:
         panel="#222222",  # Panel color (same as background)
         success="#ffe165",  # Success messages (use logo color)
         warning="#ffe165",  # Warning messages (use logo color)
-        error="#ffe165",  # Error messages (use logo color)
+        error="#ff6b6b",  # Error messages (light red)
         dark=True,  # This is a dark theme
         variables={
             # Placeholder text color
