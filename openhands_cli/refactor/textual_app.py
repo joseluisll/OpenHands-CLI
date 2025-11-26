@@ -18,8 +18,8 @@ from openhands_cli.refactor.theme import OPENHANDS_THEME
 
 # Available commands with descriptions (starting with basic set)
 COMMANDS = [
-    DropdownItem(main="/help", prefix="🤖"),
-    DropdownItem(main="/exit", prefix="🚪"),
+    DropdownItem(main="/help", prefix="Display available commands"),
+    DropdownItem(main="/exit", prefix="Exit the application"),
 ]
 
 
@@ -142,7 +142,7 @@ class OpenHandsApp(App):
         main_display = self.query_one("#main_display", RichLog)
 
         help_text = """
-[bold yellow]🤖 OpenHands CLI Help[/bold yellow]
+[bold yellow]OpenHands CLI Help[/bold yellow]
 [dim]Available commands:[/dim]
 
   [white]/help[/white] - Display available commands
