@@ -11,7 +11,7 @@ from textual.app import App, ComposeResult
 from textual.containers import Container
 from textual.widgets import Input, RichLog
 
-from openhands_cli.refactor.autocomplete import CommandAutoComplete
+from openhands_cli.refactor.autocomplete import EnhancedAutoComplete
 from openhands_cli.refactor.commands import COMMANDS, show_help
 from openhands_cli.refactor.splash import get_welcome_message
 from openhands_cli.refactor.theme import OPENHANDS_THEME
@@ -89,8 +89,8 @@ class OpenHandsApp(App):
             )
             yield text_input
 
-            # Add autocomplete for the input
-            yield CommandAutoComplete(text_input, candidates=COMMANDS)
+            # Add enhanced autocomplete for the input (commands and file paths)
+            yield EnhancedAutoComplete(text_input, command_candidates=COMMANDS)
 
     def on_mount(self) -> None:
         """Called when app starts."""

@@ -6,7 +6,10 @@ import pytest
 from textual.widgets import Input, RichLog
 from textual_autocomplete import AutoComplete, TargetState
 
-from openhands_cli.refactor.autocomplete import CommandAutoComplete
+from openhands_cli.refactor.autocomplete import (
+    CommandAutoComplete,
+    EnhancedAutoComplete,
+)
 from openhands_cli.refactor.commands import COMMANDS, show_help
 from openhands_cli.refactor.textual_app import OpenHandsApp
 
@@ -31,9 +34,9 @@ class TestCommandsAndAutocomplete:
         with mock.patch.object(get_welcome_message, "__call__", return_value="test"):
             app = OpenHandsApp()
             async with app.run_test() as pilot:
-                # Check that CommandAutoComplete widget exists
-                autocomplete = pilot.app.query_one(CommandAutoComplete)
-                assert isinstance(autocomplete, CommandAutoComplete)
+                # Check that EnhancedAutoComplete widget exists
+                autocomplete = pilot.app.query_one(EnhancedAutoComplete)
+                assert isinstance(autocomplete, EnhancedAutoComplete)
                 assert isinstance(
                     autocomplete, AutoComplete
                 )  # Should also be an AutoComplete
@@ -238,3 +241,154 @@ class TestCommandsAndAutocomplete:
         # Test search string extraction
         result = autocomplete.get_search_string(target_state)
         assert result == expected_search_string
+
+
+class TestEnhancedAutoComplete:
+    """Tests for the enhanced autocomplete functionality."""
+
+    def test_enhanced_autocomplete_initialization(self):
+        """Test that EnhancedAutoComplete initializes correctly."""
+        mock_input = mock.MagicMock(spec=Input)
+        autocomplete = EnhancedAutoComplete(mock_input, command_candidates=COMMANDS)
+
+        assert autocomplete.command_candidates == COMMANDS
+        assert isinstance(autocomplete, AutoComplete)
+
+    @pytest.mark.parametrize(
+        "text,cursor_position,expected_type",
+        [
+            # Command completion cases
+            ("/", 1, "command"),
+            ("/h", 2, "command"),
+            ("/help", 5, "command"),
+            ("/exit", 5, "command"),
+            # File path completion cases
+            ("@", 1, "file"),
+            ("@R", 2, "file"),
+            ("@README", 7, "file"),
+            ("@openhands_cli/", 15, "file"),
+            # No completion cases
+            ("hello", 5, "none"),
+            ("", 0, "none"),
+            ("regular text", 12, "none"),
+        ],
+    )
+    def test_enhanced_autocomplete_get_candidates_type(
+        self, text, cursor_position, expected_type
+    ):
+        """Test that get_candidates returns appropriate candidate types."""
+        mock_input = mock.MagicMock(spec=Input)
+        autocomplete = EnhancedAutoComplete(mock_input, command_candidates=COMMANDS)
+
+        target_state = TargetState(text=text, cursor_position=cursor_position)
+        candidates = autocomplete.get_candidates(target_state)
+
+        if expected_type == "command":
+            # Should return command candidates
+            assert len(candidates) > 0
+            assert all(str(c.main).startswith("/") for c in candidates)
+        elif expected_type == "file":
+            # Should return file candidates (may be empty if no files match)
+            assert isinstance(candidates, list)
+            if candidates:  # If there are candidates, they should start with @
+                assert all(str(c.main).startswith("@") for c in candidates)
+        else:  # expected_type == "none"
+            # Should return empty list
+            assert candidates == []
+
+    @pytest.mark.parametrize(
+        "text,cursor_position,expected_search_string",
+        [
+            # Command search strings
+            ("/", 1, "/"),
+            ("/h", 2, "/h"),
+            ("/help", 5, "/help"),
+            ("/help ", 6, ""),  # Space stops command completion
+            # File path search strings
+            ("@", 1, ""),  # Empty filename part
+            ("@R", 2, "R"),
+            ("@README", 7, "README"),
+            ("@openhands_cli/", 15, ""),  # Directory with trailing slash
+            ("@openhands_cli/test", 19, "test"),
+            ("@path/to/file.py", 16, "file.py"),
+            ("@file ", 6, ""),  # Space stops file completion
+            # No completion cases
+            ("hello", 5, ""),
+            ("", 0, ""),
+        ],
+    )
+    def test_enhanced_autocomplete_get_search_string(
+        self, text, cursor_position, expected_search_string
+    ):
+        """Test that get_search_string works for both commands and file paths."""
+        mock_input = mock.MagicMock(spec=Input)
+        autocomplete = EnhancedAutoComplete(mock_input, command_candidates=COMMANDS)
+
+        target_state = TargetState(text=text, cursor_position=cursor_position)
+        result = autocomplete.get_search_string(target_state)
+        assert result == expected_search_string
+
+    def test_enhanced_autocomplete_apply_completion_command(self):
+        """Test that apply_completion works correctly for commands."""
+        mock_input = mock.MagicMock(spec=Input)
+        mock_input.value = "/he"
+
+        autocomplete = EnhancedAutoComplete(mock_input, command_candidates=COMMANDS)
+
+        # Create a mock state
+        mock_state = TargetState(text="/he", cursor_position=3)
+
+        # Test command completion
+        autocomplete.apply_completion("/help - Display available commands", mock_state)
+
+        # Should clear and insert command only
+        assert mock_input.value == ""
+        mock_input.insert_text_at_cursor.assert_called_with("/help")
+
+    def test_enhanced_autocomplete_apply_completion_file(self):
+        """Test that apply_completion works correctly for file paths."""
+        mock_input = mock.MagicMock(spec=Input)
+        mock_input.value = "@READ"
+
+        autocomplete = EnhancedAutoComplete(mock_input, command_candidates=COMMANDS)
+
+        # Create a mock state
+        mock_state = TargetState(text="@READ", cursor_position=5)
+
+        # Test file path completion
+        autocomplete.apply_completion("@README.md", mock_state)
+
+        # Should clear and insert full file path
+        assert mock_input.value == ""
+        mock_input.insert_text_at_cursor.assert_called_with("@README.md")
+
+    def test_file_candidates_with_real_files(self):
+        """Test that file candidates include real files from the working directory."""
+        mock_input = mock.MagicMock(spec=Input)
+        autocomplete = EnhancedAutoComplete(mock_input, command_candidates=COMMANDS)
+
+        # Test getting file candidates for @ (root directory)
+        target_state = TargetState(text="@", cursor_position=1)
+        candidates = autocomplete.get_candidates(target_state)
+
+        # Should have some candidates (files in the working directory)
+        assert isinstance(candidates, list)
+        if candidates:  # If there are files in the directory
+            # All should start with @
+            assert all(str(c.main).startswith("@") for c in candidates)
+            # Should have prefixes (file/folder icons)
+            assert all(
+                hasattr(c, "prefix") and c.prefix in ["📁", "📄"] for c in candidates
+            )
+
+    def test_file_candidates_empty_directory(self):
+        """Test file candidates behavior with non-existent directory."""
+        mock_input = mock.MagicMock(spec=Input)
+        autocomplete = EnhancedAutoComplete(mock_input, command_candidates=COMMANDS)
+
+        # Test with a path that doesn't exist
+        target_state = TargetState(text="@nonexistent/", cursor_position=13)
+        candidates = autocomplete.get_candidates(target_state)
+
+        # Should return empty list for non-existent directory
+        assert candidates == []
