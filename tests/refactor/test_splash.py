@@ -173,8 +173,12 @@ class TestGetWelcomeMessage:
             message = get_welcome_message(theme=OPENHANDS_THEME)
             banner = get_openhands_banner()
 
-            # Banner should be included in the message
-            assert banner in message
+            # Banner should be included in the message (with or without Rich markup)
+            # Check if the plain banner text is present (ignoring Rich markup)
+            banner_lines = banner.split("\n")
+            for line in banner_lines:
+                if line.strip():  # Skip empty lines
+                    assert line in message
 
     def test_welcome_message_structure(self):
         """Test the overall structure of the welcome message."""

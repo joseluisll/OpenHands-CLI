@@ -3,7 +3,7 @@
 from unittest import mock
 
 import pytest
-from textual.widgets import RichLog
+from textual.containers import VerticalScroll
 from textual_autocomplete import DropdownItem
 
 from openhands_cli.refactor.commands import COMMANDS, show_help
@@ -72,13 +72,14 @@ class TestCommands:
     )
     def test_show_help_content_elements(self, expected_content):
         """Test that show_help includes all expected content elements."""
-        mock_richlog = mock.MagicMock(spec=RichLog)
+        mock_main_display = mock.MagicMock(spec=VerticalScroll)
 
-        show_help(mock_richlog)
+        show_help(mock_main_display)
 
-        # Get the help text that was written
-        mock_richlog.write.assert_called_once()
-        help_text = mock_richlog.write.call_args[0][0]
+        # Get the help text that was mounted
+        mock_main_display.mount.assert_called_once()
+        help_widget = mock_main_display.mount.call_args[0][0]
+        help_text = help_widget.content
 
         assert expected_content in help_text
 
@@ -86,11 +87,12 @@ class TestCommands:
         """Test that show_help uses OpenHands theme colors."""
         from openhands_cli.refactor.theme import OPENHANDS_THEME
 
-        mock_richlog = mock.MagicMock(spec=RichLog)
+        mock_main_display = mock.MagicMock(spec=VerticalScroll)
 
-        show_help(mock_richlog)
+        show_help(mock_main_display)
 
-        help_text = mock_richlog.write.call_args[0][0]
+        help_widget = mock_main_display.mount.call_args[0][0]
+        help_text = help_widget.content
 
         # Should use OpenHands theme colors
         assert OPENHANDS_THEME.primary in help_text  # Primary color (yellow)
@@ -104,11 +106,12 @@ class TestCommands:
         """Test that show_help has proper Rich markup formatting."""
         from openhands_cli.refactor.theme import OPENHANDS_THEME
 
-        mock_richlog = mock.MagicMock(spec=RichLog)
+        mock_main_display = mock.MagicMock(spec=VerticalScroll)
 
-        show_help(mock_richlog)
+        show_help(mock_main_display)
 
-        help_text = mock_richlog.write.call_args[0][0]
+        help_widget = mock_main_display.mount.call_args[0][0]
+        help_text = help_widget.content
 
         # Check for proper Rich markup with theme colors
         assert f"[bold {OPENHANDS_THEME.primary}]" in help_text

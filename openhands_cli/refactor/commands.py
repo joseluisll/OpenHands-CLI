@@ -4,7 +4,8 @@ This module contains all available commands, their descriptions,
 and the logic for handling command execution.
 """
 
-from textual.widgets import RichLog
+from textual.containers import VerticalScroll
+from textual.widgets import Static
 from textual_autocomplete import DropdownItem
 
 from .theme import OPENHANDS_THEME
@@ -47,11 +48,11 @@ def is_valid_command(user_input: str) -> bool:
     return user_input in get_valid_commands()
 
 
-def show_help(main_display: RichLog) -> None:
+def show_help(main_display: VerticalScroll) -> None:
     """Display help information in the main display.
 
     Args:
-        main_display: The RichLog widget to write help content to
+        main_display: The VerticalScroll widget to mount help content to
     """
     primary = OPENHANDS_THEME.primary
     secondary = OPENHANDS_THEME.secondary
@@ -68,4 +69,5 @@ def show_help(main_display: RichLog) -> None:
   • Use arrow keys to navigate through suggestions
   • Press Enter to select a command
 """
-    main_display.write(help_text)
+    help_widget = Static(help_text, classes="help-message")
+    main_display.mount(help_widget)

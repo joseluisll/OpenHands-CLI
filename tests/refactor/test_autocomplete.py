@@ -3,7 +3,8 @@
 from unittest import mock
 
 import pytest
-from textual.widgets import Input, RichLog
+from textual.containers import VerticalScroll
+from textual.widgets import Input, Static
 from textual_autocomplete import AutoComplete, TargetState
 
 from openhands_cli.refactor.autocomplete import (
@@ -51,15 +52,16 @@ class TestCommandsAndAutocomplete:
         app = OpenHandsApp()
 
         # Mock the query_one method
-        mock_richlog = mock.MagicMock(spec=RichLog)
-        app.query_one = mock.MagicMock(return_value=mock_richlog)
+        mock_main_display = mock.MagicMock(spec=VerticalScroll)
+        app.query_one = mock.MagicMock(return_value=mock_main_display)
 
         # Call the command handler
         app._handle_command("/help")
 
-        # Check that help text was written
-        mock_richlog.write.assert_called_once()
-        help_text = mock_richlog.write.call_args[0][0]
+        # Check that help text was mounted
+        mock_main_display.mount.assert_called_once()
+        help_widget = mock_main_display.mount.call_args[0][0]
+        help_text = str(help_widget.content)
         assert "OpenHands CLI Help" in help_text
         assert "/help" in help_text
         assert "/exit" in help_text
@@ -72,8 +74,8 @@ class TestCommandsAndAutocomplete:
         app = OpenHandsApp(exit_confirmation=True)
 
         # Mock the query_one method and push_screen method
-        mock_richlog = mock.MagicMock(spec=RichLog)
-        app.query_one = mock.MagicMock(return_value=mock_richlog)
+        mock_main_display = mock.MagicMock(spec=VerticalScroll)
+        app.query_one = mock.MagicMock(return_value=mock_main_display)
         app.push_screen = mock.MagicMock()
 
         # Call the command handler
@@ -92,8 +94,8 @@ class TestCommandsAndAutocomplete:
         app = OpenHandsApp(exit_confirmation=False)
 
         # Mock the query_one method and exit method
-        mock_richlog = mock.MagicMock(spec=RichLog)
-        app.query_one = mock.MagicMock(return_value=mock_richlog)
+        mock_main_display = mock.MagicMock(spec=VerticalScroll)
+        app.query_one = mock.MagicMock(return_value=mock_main_display)
         app.exit = mock.MagicMock()
 
         # Call the command handler
@@ -181,22 +183,25 @@ class TestCommandsAndAutocomplete:
         app = OpenHandsApp()
 
         # Mock the query_one method
-        mock_richlog = mock.MagicMock(spec=RichLog)
-        app.query_one = mock.MagicMock(return_value=mock_richlog)
+        mock_main_display = mock.MagicMock(spec=VerticalScroll)
+        app.query_one = mock.MagicMock(return_value=mock_main_display)
 
         # Call the command handler with unknown command
         app._handle_command("/unknown")
 
-        # Check that error message was written
-        mock_richlog.write.assert_called_once_with("Unknown command: /unknown")
+        # Check that error message was mounted
+        mock_main_display.mount.assert_called_once()
+        error_widget = mock_main_display.mount.call_args[0][0]
+        error_text = str(error_widget.content)
+        assert "Unknown command: /unknown" in error_text
 
     def test_on_input_submitted_handles_commands(self):
         """Test that commands are routed to command handler."""
         app = OpenHandsApp()
 
         # Mock the query_one method and command handler
-        mock_richlog = mock.MagicMock(spec=RichLog)
-        app.query_one = mock.MagicMock(return_value=mock_richlog)
+        mock_main_display = mock.MagicMock(spec=VerticalScroll)
+        app.query_one = mock.MagicMock(return_value=mock_main_display)
         app._handle_command = mock.MagicMock()
 
         # Create mock event with command input
@@ -218,8 +223,8 @@ class TestCommandsAndAutocomplete:
         app = OpenHandsApp()
 
         # Mock the query_one method
-        mock_richlog = mock.MagicMock(spec=RichLog)
-        app.query_one = mock.MagicMock(return_value=mock_richlog)
+        mock_main_display = mock.MagicMock(spec=VerticalScroll)
+        app.query_one = mock.MagicMock(return_value=mock_main_display)
 
         # Mock the conversation runner
         mock_conversation_runner = mock.MagicMock()
@@ -235,34 +240,39 @@ class TestCommandsAndAutocomplete:
         app.on_input_submitted(mock_event)
 
         # Check that user message, processing message, and placeholder response
-        # were written
-        assert mock_richlog.write.call_count == 3
+        # were mounted
+        assert mock_main_display.mount.call_count == 3
 
-        # First call should be the user message
-        first_call = mock_richlog.write.call_args_list[0][0][0]
-        assert first_call == "\n> hello world"
+        # First call should be the user message widget
+        first_call_widget = mock_main_display.mount.call_args_list[0][0][0]
+        first_call_text = str(first_call_widget.content)
+        assert first_call_text == "> hello world"
 
-        # Second call should be the processing message
-        second_call = mock_richlog.write.call_args_list[1][0][0]
-        assert "Processing message" in second_call
+        # Second call should be the processing message widget
+        second_call_widget = mock_main_display.mount.call_args_list[1][0][0]
+        second_call_text = str(second_call_widget.content)
+        assert "Processing message" in second_call_text
 
-        # Third call should be the placeholder message
-        third_call = mock_richlog.write.call_args_list[2][0][0]
-        assert "conversation runner" in third_call
+        # Third call should be the placeholder message widget
+        third_call_widget = mock_main_display.mount.call_args_list[2][0][0]
+        third_call_text = str(third_call_widget.content)
+        assert "conversation runner" in third_call_text
 
         # Input should be cleared
         assert mock_event.input.value == ""
 
     def test_show_help_content(self):
         """Test that help content contains expected information."""
-        # Mock the RichLog widget
-        mock_richlog = mock.MagicMock(spec=RichLog)
+        # Mock the VerticalScroll widget
+        mock_main_display = mock.MagicMock(spec=VerticalScroll)
 
         # Call the help function directly
-        show_help(mock_richlog)
+        show_help(mock_main_display)
 
         # Check help content
-        help_text = mock_richlog.write.call_args[0][0]
+        mock_main_display.mount.assert_called_once()
+        help_widget = mock_main_display.mount.call_args[0][0]
+        help_text = str(help_widget.content)
         assert "OpenHands CLI Help" in help_text
         assert "/help" in help_text
         assert "/exit" in help_text
@@ -276,8 +286,8 @@ class TestCommandsAndAutocomplete:
         app = OpenHandsApp()
 
         # Mock the query_one method
-        mock_richlog = mock.MagicMock(spec=RichLog)
-        app.query_one = mock.MagicMock(return_value=mock_richlog)
+        mock_main_display = mock.MagicMock(spec=VerticalScroll)
+        app.query_one = mock.MagicMock(return_value=mock_main_display)
         app._handle_command = mock.MagicMock()
 
         # Test exact command matches
@@ -301,8 +311,8 @@ class TestCommandsAndAutocomplete:
         app = OpenHandsApp()
 
         # Mock the query_one method
-        mock_richlog = mock.MagicMock(spec=RichLog)
-        app.query_one = mock.MagicMock(return_value=mock_richlog)
+        mock_main_display = mock.MagicMock(spec=VerticalScroll)
+        app.query_one = mock.MagicMock(return_value=mock_main_display)
         app._handle_command = mock.MagicMock()
 
         # Test inputs that start with / but are not exact command matches
@@ -322,7 +332,7 @@ class TestCommandsAndAutocomplete:
             mock_event.input.value = invalid_command
 
             # Reset mocks
-            mock_richlog.reset_mock()
+            mock_main_display.reset_mock()
             app._handle_command.reset_mock()
 
             app.on_input_submitted(mock_event)
@@ -331,10 +341,11 @@ class TestCommandsAndAutocomplete:
             app._handle_command.assert_not_called()
 
             # Should be treated as regular message instead
-            # Check that user message was written (first call)
-            assert mock_richlog.write.call_count >= 1
-            first_call = mock_richlog.write.call_args_list[0][0][0]
-            assert first_call == f"\n> {invalid_command}"
+            # Check that user message was mounted (first call)
+            assert mock_main_display.mount.call_count >= 1
+            first_call_widget = mock_main_display.mount.call_args_list[0][0][0]
+            first_call_text = str(first_call_widget.content)
+            assert first_call_text == f"> {invalid_command}"
 
     def test_get_valid_commands(self):
         """Test that get_valid_commands extracts command names correctly."""

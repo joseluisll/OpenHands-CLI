@@ -14,7 +14,7 @@ from textual.containers import Container, VerticalScroll
 from textual.widgets import Collapsible, Input, Static
 
 from openhands_cli.refactor.autocomplete import EnhancedAutoComplete
-from openhands_cli.refactor.commands import COMMANDS, is_valid_command
+from openhands_cli.refactor.commands import COMMANDS, is_valid_command, show_help
 from openhands_cli.refactor.conversation_runner import MinimalConversationRunner
 from openhands_cli.refactor.exit_modal import ExitConfirmationModal
 from openhands_cli.refactor.richlog_visualizer import TextualVisualizer
@@ -173,11 +173,7 @@ class OpenHandsApp(App):
         main_display = self.query_one("#main_display", VerticalScroll)
 
         if command == "/help":
-            # For now, add help as a Static widget - we'll improve this later
-            help_widget = Static(
-                "Help: Available commands: /help, /exit", classes="help-message"
-            )
-            main_display.mount(help_widget)
+            show_help(main_display)
         elif command == "/exit":
             self._handle_exit()
         else:

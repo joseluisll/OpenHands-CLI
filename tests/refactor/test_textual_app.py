@@ -3,7 +3,8 @@
 import unittest.mock as mock
 
 import pytest
-from textual.widgets import Input, RichLog
+from textual.containers import VerticalScroll
+from textual.widgets import Input, Static
 
 from openhands_cli.refactor.textual_app import OpenHandsApp
 
@@ -30,7 +31,6 @@ class TestOpenHandsApp:
         # Check for main display styles
         assert "#main_display" in css
         assert "height: 1fr" in css
-        assert "overflow-y: scroll" in css
 
         # Check for input area styles
         assert "#input_area" in css
@@ -47,13 +47,10 @@ class TestOpenHandsApp:
 
         app = OpenHandsApp()
         async with app.run_test() as pilot:
-            # Check that main display exists and is a RichLog
-            main_display = pilot.app.query_one("#main_display", RichLog)
-            assert isinstance(main_display, RichLog)
+            # Check that main display exists and is a VerticalScroll
+            main_display = pilot.app.query_one("#main_display", VerticalScroll)
+            assert isinstance(main_display, VerticalScroll)
             assert main_display.id == "main_display"
-            assert main_display.highlight is False
-            assert main_display.markup is True
-            assert main_display.can_focus is False
 
             # Check that input area exists
             input_area = pilot.app.query_one("#input_area")
@@ -78,7 +75,7 @@ class TestOpenHandsApp:
             mock_welcome.assert_called_once_with(theme=OPENHANDS_THEME)
 
             # Verify main display exists (welcome message should be added during mount)
-            main_display = pilot.app.query_one("#main_display", RichLog)
+            main_display = pilot.app.query_one("#main_display", VerticalScroll)
             assert main_display is not None
 
             # Verify input exists and has focus
@@ -90,8 +87,8 @@ class TestOpenHandsApp:
         app = OpenHandsApp()
 
         # Mock the query_one method
-        mock_richlog = mock.MagicMock(spec=RichLog)
-        app.query_one = mock.MagicMock(return_value=mock_richlog)
+        mock_main_display = mock.MagicMock(spec=VerticalScroll)
+        app.query_one = mock.MagicMock(return_value=mock_main_display)
 
         # Create mock event with empty input
         mock_event = mock.MagicMock()
@@ -101,8 +98,8 @@ class TestOpenHandsApp:
         # Call the method
         app.on_input_submitted(mock_event)
 
-        # RichLog.write should not be called for empty input
-        mock_richlog.write.assert_not_called()
+        # mount should not be called for empty input
+        mock_main_display.mount.assert_not_called()
 
         # Input value should not be cleared
         assert mock_event.input.value == ""
@@ -112,8 +109,8 @@ class TestOpenHandsApp:
         app = OpenHandsApp()
 
         # Mock the query_one method
-        mock_richlog = mock.MagicMock(spec=RichLog)
-        app.query_one = mock.MagicMock(return_value=mock_richlog)
+        mock_main_display = mock.MagicMock(spec=VerticalScroll)
+        app.query_one = mock.MagicMock(return_value=mock_main_display)
 
         # Create mock event with whitespace-only input
         mock_event = mock.MagicMock()
@@ -123,8 +120,8 @@ class TestOpenHandsApp:
         # Call the method
         app.on_input_submitted(mock_event)
 
-        # RichLog.write should not be called for whitespace-only input
-        mock_richlog.write.assert_not_called()
+        # mount should not be called for whitespace-only input
+        mock_main_display.mount.assert_not_called()
 
         # Input value should not be cleared
         assert mock_event.input.value == "   \t\n  "
@@ -144,8 +141,8 @@ class TestOpenHandsApp:
         app = OpenHandsApp()
 
         # Mock the query_one method
-        mock_richlog = mock.MagicMock(spec=RichLog)
-        app.query_one = mock.MagicMock(return_value=mock_richlog)
+        mock_main_display = mock.MagicMock(spec=VerticalScroll)
+        app.query_one = mock.MagicMock(return_value=mock_main_display)
 
         # Mock the conversation runner
         mock_conversation_runner = mock.MagicMock()
@@ -160,22 +157,25 @@ class TestOpenHandsApp:
         # Call the method
         app.on_input_submitted(mock_event)
 
-        # RichLog.write should be called three times:
+        # mount should be called three times:
         # user message + processing + placeholder
-        assert mock_richlog.write.call_count == 3
+        assert mock_main_display.mount.call_count == 3
 
-        # First call should be the user message
-        expected_message = f"\n> {user_input}"
-        first_call = mock_richlog.write.call_args_list[0][0][0]
-        assert first_call == expected_message
+        # First call should be the user message widget
+        first_call_widget = mock_main_display.mount.call_args_list[0][0][0]
+        # The widget should be a Static widget with user-message class
+        assert first_call_widget.__class__.__name__ == 'Static'
+        assert 'user-message' in first_call_widget.classes
+        # The widget content should contain the user input
+        assert user_input in str(first_call_widget.content)
 
-        # Second call should be the processing message
-        second_call = mock_richlog.write.call_args_list[1][0][0]
-        assert "Processing message" in second_call
+        # Second call should be the processing message widget
+        second_call_widget = mock_main_display.mount.call_args_list[1][0][0]
+        assert "Processing message" in str(second_call_widget.content)
 
-        # Third call should be the placeholder message
-        third_call = mock_richlog.write.call_args_list[2][0][0]
-        assert "conversation runner" in third_call
+        # Third call should be the placeholder message widget
+        third_call_widget = mock_main_display.mount.call_args_list[2][0][0]
+        assert "conversation runner" in str(third_call_widget.content)
 
         # Input value should be cleared
         assert mock_event.input.value == ""
@@ -185,8 +185,8 @@ class TestOpenHandsApp:
         app = OpenHandsApp()
 
         # Mock the query_one method
-        mock_richlog = mock.MagicMock(spec=RichLog)
-        app.query_one = mock.MagicMock(return_value=mock_richlog)
+        mock_main_display = mock.MagicMock(spec=VerticalScroll)
+        app.query_one = mock.MagicMock(return_value=mock_main_display)
 
         # Mock the conversation runner
         mock_conversation_runner = mock.MagicMock()
@@ -202,9 +202,10 @@ class TestOpenHandsApp:
         app.on_input_submitted(mock_event)
 
         # Check the exact format of the first message (user input)
-        first_call = mock_richlog.write.call_args_list[0][0][0]
-        assert first_call == "\n> test message"
-        assert first_call.startswith("\n> ")
+        first_call_widget = mock_main_display.mount.call_args_list[0][0][0]
+        widget_content = str(first_call_widget.content)
+        assert widget_content == "> test message"
+        assert widget_content.startswith("> ")
 
     @mock.patch("openhands_cli.refactor.textual_app.get_welcome_message")
     @mock.patch("openhands_cli.refactor.textual_app.MinimalConversationRunner")
@@ -241,9 +242,9 @@ class TestOpenHandsApp:
             assert user_input.value == ""
 
             # Check that message was added to the display
-            # The RichLog should contain both welcome message and user input
+            # The VerticalScroll should contain both welcome message and user input
             # We can't easily check the exact content, but we can verify it exists
-            pilot.app.query_one("#main_display", RichLog)
+            pilot.app.query_one("#main_display", VerticalScroll)
 
     @mock.patch("openhands_cli.refactor.textual_app.get_welcome_message")
     async def test_welcome_message_called_on_mount(self, mock_welcome):
@@ -277,19 +278,17 @@ class TestOpenHandsApp:
             assert user_input.id == "user_input"
 
     @mock.patch("openhands_cli.refactor.textual_app.get_welcome_message")
-    async def test_richlog_configuration(self, mock_welcome):
-        """Test that RichLog is configured correctly."""
+    async def test_main_display_configuration(self, mock_welcome):
+        """Test that main display is configured correctly."""
         mock_welcome.return_value = "test"
 
         app = OpenHandsApp()
         async with app.run_test() as pilot:
-            main_display = pilot.app.query_one("#main_display", RichLog)
+            main_display = pilot.app.query_one("#main_display", VerticalScroll)
 
-            # Check RichLog configuration
-            assert isinstance(main_display, RichLog)
-            assert main_display.highlight is False
-            assert main_display.markup is True
-            assert main_display.can_focus is False
+            # Check VerticalScroll configuration
+            assert isinstance(main_display, VerticalScroll)
+            assert main_display.id == "main_display"
 
     def test_custom_theme_properties(self):
         """Test that custom OpenHands theme has correct colors."""
