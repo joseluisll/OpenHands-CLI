@@ -4,7 +4,7 @@ import unittest.mock as mock
 
 import pytest
 from textual.containers import VerticalScroll
-from textual.widgets import Input, Static
+from textual.widgets import Input
 
 from openhands_cli.refactor.textual_app import OpenHandsApp
 
@@ -164,8 +164,8 @@ class TestOpenHandsApp:
         # First call should be the user message widget
         first_call_widget = mock_main_display.mount.call_args_list[0][0][0]
         # The widget should be a Static widget with user-message class
-        assert first_call_widget.__class__.__name__ == 'Static'
-        assert 'user-message' in first_call_widget.classes
+        assert first_call_widget.__class__.__name__ == "Static"
+        assert "user-message" in first_call_widget.classes
         # The widget content should contain the user input
         assert user_input in str(first_call_widget.content)
 

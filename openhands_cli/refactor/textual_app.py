@@ -14,6 +14,7 @@ from typing import ClassVar
 
 from textual.app import App, ComposeResult
 from textual.containers import Container, VerticalScroll
+from textual.timer import Timer
 from textual.widgets import Collapsible, Input, Static
 
 from openhands_cli.locations import WORK_DIR
@@ -51,8 +52,8 @@ class OpenHandsApp(App):
         self.conversation_runner = None
 
         # Timer tracking
-        self.conversation_start_time = None
-        self.timer_update_task = None
+        self.conversation_start_time: float | None = None
+        self.timer_update_task: Timer | None = None
 
         # Register the custom theme
         self.register_theme(OPENHANDS_THEME)
@@ -138,9 +139,7 @@ class OpenHandsApp(App):
         # Input area - docked to bottom
         with Container(id="input_area"):
             text_input = Input(
-                placeholder=(
-                    "Type your message, @mention a file, or / for commands"
-                ),
+                placeholder=("Type your message, @mention a file, or / for commands"),
                 id="user_input",
             )
             yield text_input
@@ -175,43 +174,51 @@ class OpenHandsApp(App):
     def get_work_dir_display(self) -> str:
         """Get the work directory display string."""
         work_dir = WORK_DIR
-        
+
         # Shorten the path for display
         if work_dir.startswith(os.path.expanduser("~")):
             work_dir = work_dir.replace(os.path.expanduser("~"), "~", 1)
-        
+
         return work_dir
 
     def update_status_line(self) -> None:
         """Update the status line with current information."""
         status_widget = self.query_one("#status_line", Static)
         work_dir = self.get_work_dir_display()
-        
-        if self.conversation_runner and self.conversation_runner.is_running and self.conversation_start_time:
+
+        # Only show controls and timer when conversation is running
+        if (
+            self.conversation_runner
+            and self.conversation_runner.is_running
+            and self.conversation_start_time
+        ):
             elapsed = int(time.time() - self.conversation_start_time)
-            status_text = f"{work_dir} ✦ (esc to cancel • {elapsed}s , Ctrl-E to show details)"
+            status_text = (
+                f"{work_dir} ✦ (esc to cancel • {elapsed}s , Ctrl-E to show details)"
+            )
         else:
-            status_text = f"{work_dir} ✦ (esc to cancel , Ctrl-E to show details)"
-        
+            # Just show work directory when not running
+            status_text = work_dir
+
         status_widget.update(status_text)
 
     async def start_timer(self) -> None:
         """Start the conversation timer."""
         self.conversation_start_time = time.time()
-        
+
         # Cancel any existing timer task
         if self.timer_update_task:
-            self.timer_update_task.cancel()
-        
+            self.timer_update_task.stop()
+
         # Start a new timer task that updates every second
         self.timer_update_task = self.set_interval(1.0, self.update_status_line)
 
     def stop_timer(self) -> None:
         """Stop the conversation timer."""
         if self.timer_update_task:
-            self.timer_update_task.cancel()
+            self.timer_update_task.stop()
             self.timer_update_task = None
-        
+
         self.conversation_start_time = None
         self.update_status_line()
 
@@ -296,6 +303,9 @@ class OpenHandsApp(App):
 
     async def _process_message_with_timer(self, user_message: str) -> None:
         """Process message and handle timer lifecycle."""
+        if self.conversation_runner is None:
+            return
+
         try:
             await self.conversation_runner.process_message_async(user_message)
         finally:

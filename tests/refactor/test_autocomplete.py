@@ -4,7 +4,7 @@ from unittest import mock
 
 import pytest
 from textual.containers import VerticalScroll
-from textual.widgets import Input, Static
+from textual.widgets import Input
 from textual_autocomplete import AutoComplete, TargetState
 
 from openhands_cli.refactor.autocomplete import (
