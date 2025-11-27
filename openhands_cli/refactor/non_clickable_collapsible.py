@@ -18,7 +18,7 @@ from textual.widget import Widget
 from textual.widgets import Static
 
 
-class NonClickableCollapsibleTitle(Static, can_focus=True):
+class NonClickableCollapsibleTitle(Static, can_focus=False):
     """Title and symbol for the NonClickableCollapsible that ignores click events."""
 
     ALLOW_SELECT = False
@@ -29,16 +29,6 @@ class NonClickableCollapsibleTitle(Static, can_focus=True):
         padding: 0 1;
         text-style: $block-cursor-blurred-text-style;
         color: $block-cursor-blurred-foreground;
-
-        &:hover {
-            background: $block-hover-background;
-            color: $foreground;
-        }
-        &:focus {
-            text-style: $block-cursor-text-style;
-            background: $block-cursor-background;
-            color: $block-cursor-foreground;
-        }
     }
     """
 
@@ -69,7 +59,18 @@ class NonClickableCollapsibleTitle(Static, can_focus=True):
     async def _on_click(self, event: events.Click) -> None:
         """Override click handler to do nothing - disable click interaction."""
         event.stop()
+        event.prevent_default()
         # Do nothing - this disables click-to-toggle functionality
+
+    def _on_mouse_down(self, event: events.MouseDown) -> None:
+        """Override mouse down to prevent focus and interaction."""
+        event.stop()
+        event.prevent_default()
+
+    def _on_mouse_up(self, event: events.MouseUp) -> None:
+        """Override mouse up to prevent focus and interaction."""
+        event.stop()
+        event.prevent_default()
 
     def action_toggle_collapsible(self) -> None:
         """Toggle the state of the parent collapsible."""
