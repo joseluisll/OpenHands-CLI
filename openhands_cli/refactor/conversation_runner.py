@@ -34,6 +34,17 @@ class MinimalConversationRunner:
             visualizer=self.visualizer,
         )
 
+    def queue_message(self, user_input: str) -> None:
+        """Queue a message for a running conversation"""
+
+        assert self.conversation is not None, "Conversation should be running"
+        assert user_input
+        # self.conversation.send_message(
+        #     Message(role="user", content=[TextContent(text=user_input)])
+        # )
+        # TODO: changes required in agent sdk for queueing messages
+        # while converastion is running
+
     async def process_message_async(self, user_input: str) -> None:
         """Process a user message asynchronously to keep UI unblocked.
 

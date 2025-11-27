@@ -202,10 +202,11 @@ class OpenHandsApp(App):
         # Show that we're processing the message
         if self.conversation_runner.is_running:
             status_widget = Static(
-                "[yellow]Agent is already processing a message...[/yellow]",
+                "Agent is already processing a message...",
                 classes="status-message",
             )
             main_display.mount(status_widget)
+            # self.conversation_runner.queue_message(user_message)
             return
 
         status_widget = Static(
