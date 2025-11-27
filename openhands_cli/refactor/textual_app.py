@@ -35,6 +35,7 @@ class OpenHandsApp(App):
     BINDINGS: ClassVar = [
         ("ctrl+q", "request_quit", "Quit"),
         ("ctrl+e", "expand_all", "Toggle All"),
+        ("escape", "pause_conversation", "Pause"),
     ]
 
     def __init__(self, exit_confirmation: bool = True, **kwargs):
@@ -323,6 +324,19 @@ class OpenHandsApp(App):
 
         for collapsible in collapsibles:
             collapsible.collapsed = any_expanded
+
+    def action_pause_conversation(self) -> None:
+        """Action to handle Esc key binding - pause the running conversation."""
+        if self.conversation_runner and self.conversation_runner.is_running:
+            self.conversation_runner.pause()
+
+            # Add a status message to show the pause was triggered
+            main_display = self.query_one("#main_display", VerticalScroll)
+            pause_widget = Static(
+                "[yellow]Pausing conversation...[/yellow]",
+                classes="status-message",
+            )
+            main_display.mount(pause_widget)
 
     def _handle_exit(self) -> None:
         """Handle exit command with optional confirmation."""

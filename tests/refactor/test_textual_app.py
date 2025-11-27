@@ -460,5 +460,83 @@ class TestStatusLineIndicator:
         app.update_status_line.assert_called_once()
 
 
+class TestPauseFunctionality:
+    """Tests for the pause conversation functionality."""
+
+    def test_action_pause_conversation_when_running(self):
+        """Test that pause action works when conversation is running."""
+        app = OpenHandsApp()
+
+        # Mock the conversation runner
+        mock_runner = mock.MagicMock()
+        mock_runner.is_running = True
+        app.conversation_runner = mock_runner
+
+        # Mock the main display
+        mock_main_display = mock.MagicMock(spec=VerticalScroll)
+        app.query_one = mock.MagicMock(return_value=mock_main_display)
+
+        # Call the pause action
+        app.action_pause_conversation()
+
+        # Verify pause was called on the conversation runner
+        mock_runner.pause.assert_called_once()
+
+        # Verify status message was added
+        mock_main_display.mount.assert_called_once()
+        pause_widget = mock_main_display.mount.call_args[0][0]
+        assert "Pausing conversation" in str(pause_widget.content)
+        assert "status-message" in pause_widget.classes
+
+
+
+    def test_action_pause_conversation_when_not_running(self):
+        """Test that pause action does nothing when conversation is not running."""
+        app = OpenHandsApp()
+
+        # Mock the conversation runner as not running
+        mock_runner = mock.MagicMock()
+        mock_runner.is_running = False
+        app.conversation_runner = mock_runner
+
+        # Mock the main display
+        mock_main_display = mock.MagicMock(spec=VerticalScroll)
+        app.query_one = mock.MagicMock(return_value=mock_main_display)
+
+        # Call the pause action
+        app.action_pause_conversation()
+
+        # Verify pause was NOT called on the conversation runner
+        mock_runner.pause.assert_not_called()
+
+        # Verify no status message was added
+        mock_main_display.mount.assert_not_called()
+
+    def test_action_pause_conversation_when_no_runner(self):
+        """Test that pause action does nothing when no conversation runner exists."""
+        app = OpenHandsApp()
+
+        # No conversation runner
+        app.conversation_runner = None
+
+        # Mock the main display
+        mock_main_display = mock.MagicMock(spec=VerticalScroll)
+        app.query_one = mock.MagicMock(return_value=mock_main_display)
+
+        # Call the pause action
+        app.action_pause_conversation()
+
+        # Verify no status message was added
+        mock_main_display.mount.assert_not_called()
+
+    def test_escape_key_binding_exists(self):
+        """Test that escape key binding is properly configured."""
+        app = OpenHandsApp()
+
+        # Check that escape key binding exists in BINDINGS
+        escape_binding = ("escape", "pause_conversation", "Pause")
+        assert escape_binding in app.BINDINGS
+
+
 class TestCommandsAndAutocomplete:
     """Tests for command handling and autocomplete functionality."""

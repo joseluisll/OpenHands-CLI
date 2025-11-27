@@ -91,3 +91,8 @@ class MinimalConversationRunner:
     def current_conversation_id(self) -> str | None:
         """Get the current conversation ID as a string."""
         return str(self.conversation_id) if self.conversation_id else None
+
+    def pause(self) -> None:
+        """Pause the running conversation."""
+        if self.conversation and self._running:
+            self.conversation.pause()
