@@ -279,11 +279,6 @@ class OpenHandsApp(App):
             # self.conversation_runner.queue_message(user_message)
             return
 
-        status_widget = Static(
-            "[blue]Processing message...[/blue]", classes="status-message"
-        )
-        main_display.mount(status_widget)
-
         # Start the timer
         self.call_later(self.start_timer)
 
