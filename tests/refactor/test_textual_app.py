@@ -4,7 +4,7 @@ import unittest.mock as mock
 
 import pytest
 from textual.containers import VerticalScroll
-from textual.widgets import Input
+from textual.widgets import Input, Static
 
 from openhands_cli.refactor.textual_app import OpenHandsApp
 
@@ -323,6 +323,141 @@ class TestOpenHandsApp:
         assert "Input .input--cursor" in app.CSS
         assert "background: $primary" in app.CSS
         assert "color: $background" in app.CSS
+
+
+class TestStatusLineIndicator:
+    """Tests for the status line message indicator functionality."""
+
+    @mock.patch("openhands_cli.refactor.textual_app.get_welcome_message")
+    async def test_status_line_widget_creation(self, mock_welcome):
+        """Test that status line widget is created with correct styling."""
+        mock_welcome.return_value = "Welcome!"
+
+        app = OpenHandsApp()
+
+        # Check CSS includes status line styling
+        assert "#status_line" in app.CSS
+        assert "dock: bottom" in app.CSS
+
+        async with app.run_test() as pilot:
+            status_line = pilot.app.query_one("#status_line", Static)
+            assert isinstance(status_line, Static)
+            assert status_line.id == "status_line"
+
+    @pytest.mark.parametrize(
+        "work_dir,home_dir,expected",
+        [
+            ("/home/user/project", "/home/user", "~/project"),
+            ("/tmp/project", "/home/user", "/tmp/project"),
+            ("/home/user/very/long/path", "/home/user", "~/very/long/path"),
+        ],
+    )
+    @mock.patch("os.path.expanduser")
+    def test_get_work_dir_display(self, mock_expanduser, work_dir, home_dir, expected):
+        """Test work directory display formatting."""
+        mock_expanduser.return_value = home_dir
+
+        with mock.patch("openhands_cli.refactor.textual_app.WORK_DIR", work_dir):
+            app = OpenHandsApp()
+            result = app.get_work_dir_display()
+            assert result == expected
+
+    @pytest.mark.parametrize(
+        "runner_exists,is_running,has_start_time,expected_contains",
+        [
+            (False, False, False, ["/test"]),  # No runner - just work dir
+            (True, False, False, ["/test"]),  # Runner not running - just work dir
+            (True, True, False, ["/test"]),  # Running but no start time - just work dir
+            (
+                True,
+                True,
+                True,
+                ["/test", "esc to cancel", "Ctrl-E to show details", "s"],
+            ),  # Full display
+        ],
+    )
+    @mock.patch("time.time", return_value=1045.0)
+    def test_status_line_display_states(
+        self, mock_time, runner_exists, is_running, has_start_time, expected_contains
+    ):
+        """Test status line display in different conversation states."""
+        app = OpenHandsApp()
+
+        mock_status_widget = mock.MagicMock(spec=Static)
+        app.query_one = mock.MagicMock(return_value=mock_status_widget)
+
+        # Set up conversation state
+        if runner_exists:
+            mock_runner = mock.MagicMock()
+            mock_runner.is_running = is_running
+            app.conversation_runner = mock_runner
+        else:
+            app.conversation_runner = None
+
+        app.conversation_start_time = 1000.0 if has_start_time else None
+
+        with mock.patch.object(app, "get_work_dir_display", return_value="/test"):
+            app.update_status_line()
+
+            call_args = mock_status_widget.update.call_args[0][0]
+            for expected in expected_contains:
+                assert expected in call_args
+
+    @pytest.mark.parametrize(
+        "start_time,current_time,expected_duration",
+        [
+            (1000.0, 1001.0, "1s"),
+            (1000.0, 1010.0, "10s"),
+            (1000.0, 1060.0, "60s"),
+            (1000.0, 1125.0, "125s"),
+        ],
+    )
+    @mock.patch("time.time")
+    def test_timer_duration_formatting(
+        self, mock_time, start_time, current_time, expected_duration
+    ):
+        """Test timer displays correct elapsed time."""
+        app = OpenHandsApp()
+
+        mock_status_widget = mock.MagicMock(spec=Static)
+        app.query_one = mock.MagicMock(return_value=mock_status_widget)
+
+        mock_runner = mock.MagicMock()
+        mock_runner.is_running = True
+        app.conversation_runner = mock_runner
+        app.conversation_start_time = start_time
+        mock_time.return_value = current_time
+
+        with mock.patch.object(app, "get_work_dir_display", return_value="/test"):
+            app.update_status_line()
+
+            call_args = mock_status_widget.update.call_args[0][0]
+            assert expected_duration in call_args
+
+    async def test_timer_lifecycle(self):
+        """Test timer start/stop functionality."""
+        app = OpenHandsApp()
+
+        # Mock timer and update method
+        mock_timer = mock.MagicMock()
+        app.set_interval = mock.MagicMock(return_value=mock_timer)
+        app.update_status_line = mock.MagicMock()
+
+        # Test start timer
+        with mock.patch("time.time", return_value=1000.0):
+            await app.start_timer()
+
+        assert app.conversation_start_time == 1000.0
+        assert app.timer_update_task == mock_timer
+        app.set_interval.assert_called_once_with(1.0, app.update_status_line)
+
+        # Test stop timer
+        app.stop_timer()
+
+        mock_timer.stop.assert_called_once()
+        assert app.timer_update_task is None
+        assert app.conversation_start_time is None
+        app.update_status_line.assert_called_once()
 
 
 class TestCommandsAndAutocomplete:
