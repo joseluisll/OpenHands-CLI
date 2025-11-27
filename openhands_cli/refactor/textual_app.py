@@ -10,8 +10,8 @@ It creates a basic app with:
 from typing import ClassVar
 
 from textual.app import App, ComposeResult
-from textual.containers import Container
-from textual.widgets import Input, RichLog
+from textual.containers import Container, VerticalScroll
+from textual.widgets import Input, RichLog, Static
 
 from openhands_cli.refactor.autocomplete import EnhancedAutoComplete
 from openhands_cli.refactor.commands import COMMANDS, is_valid_command, show_help
@@ -60,7 +60,24 @@ class OpenHandsApp(App):
     #main_display {
         height: 1fr;
         margin: 1 1 0 1;
-        overflow-y: scroll;
+        background: $background;
+        color: $foreground;
+    }
+
+    #splash_content {
+        padding: 1;
+        background: $background;
+        color: $foreground;
+    }
+
+    .user-message {
+        padding: 0 1;
+        background: $background;
+        color: $primary;
+    }
+
+    .help-message, .error-message, .status-message {
+        padding: 0 1;
         background: $background;
         color: $foreground;
     }
@@ -95,10 +112,10 @@ class OpenHandsApp(App):
 
     def compose(self) -> ComposeResult:
         """Create child widgets for the app."""
-        # Main scrollable display
-        main_display = RichLog(id="main_display", highlight=False, markup=True)
-        main_display.can_focus = False
-        yield main_display
+        # Main scrollable display - using VerticalScroll to support Collapsible widgets
+        with VerticalScroll(id="main_display"):
+            # Add initial splash content as a Static widget
+            yield Static(id="splash_content")
 
         # Input area - docked to bottom
         with Container(id="input_area"):
@@ -115,12 +132,15 @@ class OpenHandsApp(App):
 
     def on_mount(self) -> None:
         """Called when app starts."""
-        # Add the splash screen content to the main display
-        main_display = self.query_one("#main_display", RichLog)
+        # Add the splash screen content to the splash widget
+        splash_widget = self.query_one("#splash_content", Static)
         splash_content = get_welcome_message(theme=OPENHANDS_THEME)
-        main_display.write(splash_content)
+        splash_widget.update(splash_content)
 
-        # Initialize conversation runner with write callback to main display
+        # Get the main display container for the visualizer
+        main_display = self.query_one("#main_display", VerticalScroll)
+
+        # Initialize conversation runner with visualizer that can add widgets
         visualizer = TextualVisualizer(main_display, self)
 
         self.conversation_runner = MinimalConversationRunner(visualizer)
@@ -132,9 +152,10 @@ class OpenHandsApp(App):
         """Handle when user submits input."""
         user_message = event.value.strip()
         if user_message:
-            # Add the user message to the main display
-            main_display = self.query_one("#main_display", RichLog)
-            main_display.write(f"\n> {user_message}")
+            # Add the user message to the main display as a Static widget
+            main_display = self.query_one("#main_display", VerticalScroll)
+            user_message_widget = Static(f"> {user_message}", classes="user-message")
+            main_display.mount(user_message_widget)
 
             # Handle commands - only exact matches
             if is_valid_command(user_message):
@@ -148,32 +169,36 @@ class OpenHandsApp(App):
 
     def _handle_command(self, command: str) -> None:
         """Handle command execution."""
-        main_display = self.query_one("#main_display", RichLog)
+        main_display = self.query_one("#main_display", VerticalScroll)
 
         if command == "/help":
-            show_help(main_display)
+            # For now, add help as a Static widget - we'll improve this later
+            help_widget = Static("Help: Available commands: /help, /exit", classes="help-message")
+            main_display.mount(help_widget)
         elif command == "/exit":
             self._handle_exit()
         else:
-            main_display.write(f"Unknown command: {command}")
+            error_widget = Static(f"Unknown command: {command}", classes="error-message")
+            main_display.mount(error_widget)
 
     def _handle_user_message(self, user_message: str) -> None:
         """Handle regular user messages with the conversation runner."""
-        main_display = self.query_one("#main_display", RichLog)
+        main_display = self.query_one("#main_display", VerticalScroll)
 
         # Check if conversation runner is initialized
         if self.conversation_runner is None:
-            main_display.write("[red]Error: Conversation runner not initialized[/red]")
+            error_widget = Static("[red]Error: Conversation runner not initialized[/red]", classes="error-message")
+            main_display.mount(error_widget)
             return
 
         # Show that we're processing the message
         if self.conversation_runner.is_running:
-            main_display.write(
-                "[yellow]Agent is already processing a message...[/yellow]"
-            )
+            status_widget = Static("[yellow]Agent is already processing a message...[/yellow]", classes="status-message")
+            main_display.mount(status_widget)
             return
 
-        main_display.write("[blue]Processing message...[/blue]")
+        status_widget = Static("[blue]Processing message...[/blue]", classes="status-message")
+        main_display.mount(status_widget)
 
         # Process message asynchronously to keep UI responsive
         # Only run worker if we have an active app (not in tests)
@@ -184,9 +209,8 @@ class OpenHandsApp(App):
             )
         except RuntimeError:
             # In test environment, just show a placeholder message
-            main_display.write(
-                "[green]Message would be processed by conversation runner[/green]"
-            )
+            placeholder_widget = Static("[green]Message would be processed by conversation runner[/green]", classes="status-message")
+            main_display.mount(placeholder_widget)
 
     def action_request_quit(self) -> None:
         """Action to handle Ctrl+Q key binding."""

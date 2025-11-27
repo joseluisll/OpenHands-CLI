@@ -7,8 +7,8 @@ import re
 import threading
 from typing import TYPE_CHECKING
 
-from rich.panel import Panel
 from rich.text import Text
+from textual.widgets import Collapsible, Static
 
 from openhands.sdk.conversation.visualizer.base import ConversationVisualizerBase
 from openhands.sdk.event import (
@@ -25,7 +25,7 @@ from openhands.sdk.event.condenser import Condensation
 
 
 if TYPE_CHECKING:
-    from textual.widgets import RichLog
+    from textual.containers import VerticalScroll
 
     from openhands_cli.refactor.textual_app import OpenHandsApp
 
@@ -53,18 +53,16 @@ DEFAULT_HIGHLIGHT_REGEX = {
     r"\*(.*?)\*": "italic",
 }
 
-_PANEL_PADDING = (1, 1)
-
 
 class TextualVisualizer(ConversationVisualizerBase):
     """Handles visualization of conversation events for Textual apps.
 
-    This visualizer outputs to a Textual RichLog widget instead of directly to console.
+    This visualizer creates Collapsible widgets and adds them to a VerticalScroll container.
     """
 
     def __init__(
         self,
-        rich_log: "RichLog",
+        container: "VerticalScroll",
         app: "OpenHandsApp",
         highlight_regex: dict[str, str] | None = DEFAULT_HIGHLIGHT_REGEX,
         skip_user_messages: bool = False,
@@ -72,14 +70,13 @@ class TextualVisualizer(ConversationVisualizerBase):
         """Initialize the visualizer.
 
         Args:
-            rich_log: The Textual RichLog widget to write to
+            container: The Textual VerticalScroll container to add widgets to
             app: The Textual app instance for thread-safe UI updates
-            name: Optional name to prefix in panel titles
             highlight_regex: Dictionary mapping regex patterns to Rich color styles
             skip_user_messages: If True, skip displaying user messages
         """
         super().__init__()
-        self._rich_log = rich_log
+        self._container = container
         self._app = app
         self._skip_user_messages = skip_user_messages
         self._highlight_patterns = highlight_regex or {}
@@ -87,27 +84,30 @@ class TextualVisualizer(ConversationVisualizerBase):
         self._main_thread_id = threading.get_ident()
 
     def on_event(self, event: Event) -> None:
-        """Main event handler that displays events with Rich formatting."""
-        panel = self._create_event_panel(event)
-        if panel:
+        """Main event handler that creates Collapsible widgets for events."""
+        collapsible_widget = self._create_event_collapsible(event)
+        if collapsible_widget:
             # Check if we're in the main thread or a background thread
             current_thread_id = threading.get_ident()
             if current_thread_id == self._main_thread_id:
                 # We're in the main thread, update UI directly
-                self._write_panel_to_ui(panel)
+                self._add_widget_to_ui(collapsible_widget)
             else:
                 # We're in a background thread, use call_from_thread
-                self._app.call_from_thread(self._write_panel_to_ui, panel)
+                self._app.call_from_thread(self._add_widget_to_ui, collapsible_widget)
 
-    def _write_panel_to_ui(self, panel: Panel) -> None:
-        """Write a panel to the UI (must be called from main thread)."""
-        self._rich_log.write(panel)
-        self._rich_log.write("")  # Add spacing between events
+    def _add_widget_to_ui(self, widget: Collapsible) -> None:
+        """Add a widget to the UI (must be called from main thread)."""
+        self._container.mount(widget)
 
     def _apply_highlighting(self, text: Text) -> Text:
         """Apply regex-based highlighting to text content."""
         if not self._highlight_patterns:
             return text
+
+        # Ensure we have a Text object
+        if not isinstance(text, Text):
+            text = Text(str(text))
 
         # Create a copy to avoid modifying the original
         highlighted = text.copy()
@@ -119,8 +119,8 @@ class TextualVisualizer(ConversationVisualizerBase):
 
         return highlighted
 
-    def _create_event_panel(self, event: Event) -> Panel | None:
-        """Create a Rich Panel for the event with appropriate styling."""
+    def _create_event_collapsible(self, event: Event) -> Collapsible | None:
+        """Create a Collapsible widget for the event with appropriate styling."""
         # Use the event's visualize property for content
         content = event.visualize
 
@@ -136,38 +136,37 @@ class TextualVisualizer(ConversationVisualizerBase):
             return None
         elif isinstance(event, ActionEvent):
             # Check if action is None (non-executable)
-            title = f"[bold {_ACTION_COLOR}]"
             if event.action is None:
-                title += f"Agent Action (Not Executed)[/bold {_ACTION_COLOR}]"
+                title = "🤖 Agent Action (Not Executed)"
             else:
-                title += f"Agent Action[/bold {_ACTION_COLOR}]"
-            return Panel(
-                content,
+                title = "🤖 Agent Action"
+            
+            # Create content widget with metrics subtitle if available
+            content_widget = Static(content)
+            metrics = self._format_metrics_subtitle()
+            if metrics:
+                content_widget = Static(f"{content}\n\n{metrics}")
+            
+            return Collapsible(
+                content_widget,
                 title=title,
-                subtitle=self._format_metrics_subtitle(),
-                border_style=_ACTION_COLOR,
-                padding=_PANEL_PADDING,
-                expand=True,
+                collapsed=False,  # Start expanded for actions
             )
         elif isinstance(event, ObservationEvent):
-            title = f"[bold {_OBSERVATION_COLOR}]"
-            title += f"Observation[/bold {_OBSERVATION_COLOR}]"
-            return Panel(
-                content,
+            title = "👁️ Observation"
+            content_widget = Static(content)
+            return Collapsible(
+                content_widget,
                 title=title,
-                border_style=_OBSERVATION_COLOR,
-                padding=_PANEL_PADDING,
-                expand=True,
+                collapsed=True,  # Start collapsed for observations
             )
         elif isinstance(event, UserRejectObservation):
-            title = f"[bold {_ERROR_COLOR}]"
-            title += f"User Rejected Action[/bold {_ERROR_COLOR}]"
-            return Panel(
-                content,
+            title = "❌ User Rejected Action"
+            content_widget = Static(content)
+            return Collapsible(
+                content_widget,
                 title=title,
-                border_style=_ERROR_COLOR,
-                padding=_PANEL_PADDING,
-                expand=True,
+                collapsed=False,  # Start expanded for rejections
             )
         elif isinstance(event, MessageEvent):
             if (
@@ -177,70 +176,63 @@ class TextualVisualizer(ConversationVisualizerBase):
             ):
                 return None
             assert event.llm_message is not None
-            # Role-based styling
-            role_colors = {
-                "user": _MESSAGE_USER_COLOR,
-                "assistant": _MESSAGE_ASSISTANT_COLOR,
-            }
-            role_color = role_colors.get(event.llm_message.role, "white")
+            
             if event.llm_message.role == "user":
-                title_text = (
-                    f"[bold {role_color}]User Message to Agent[/bold {role_color}]"
-                )
+                title = "👤 User Message to Agent"
             else:
-                title_text = (
-                    f"[bold {role_color}]Message from Agent[/bold {role_color}]"
-                )
-            return Panel(
-                content,
-                title=title_text,
-                subtitle=self._format_metrics_subtitle(),
-                border_style=role_color,
-                padding=_PANEL_PADDING,
-                expand=True,
+                title = "🤖 Message from Agent"
+            
+            # Create content widget with metrics if available
+            content_widget = Static(content)
+            metrics = self._format_metrics_subtitle()
+            if metrics and event.llm_message.role == "assistant":
+                content_widget = Static(f"{content}\n\n{metrics}")
+            
+            return Collapsible(
+                content_widget,
+                title=title,
+                collapsed=False,  # Start expanded for messages
             )
         elif isinstance(event, AgentErrorEvent):
-            title = f"[bold {_ERROR_COLOR}]"
-            title += f"Agent Error[/bold {_ERROR_COLOR}]"
-            return Panel(
-                content,
+            title = "🚨 Agent Error"
+            content_widget = Static(content)
+            metrics = self._format_metrics_subtitle()
+            if metrics:
+                content_widget = Static(f"{content}\n\n{metrics}")
+            
+            return Collapsible(
+                content_widget,
                 title=title,
-                subtitle=self._format_metrics_subtitle(),
-                border_style=_ERROR_COLOR,
-                padding=_PANEL_PADDING,
-                expand=True,
+                collapsed=False,  # Start expanded for errors
             )
         elif isinstance(event, PauseEvent):
-            title = f"[bold {_PAUSE_COLOR}]"
-            title += f"User Paused[/bold {_PAUSE_COLOR}]"
-            return Panel(
-                content,
+            title = "⏸️ User Paused"
+            content_widget = Static(content)
+            return Collapsible(
+                content_widget,
                 title=title,
-                border_style=_PAUSE_COLOR,
-                padding=_PANEL_PADDING,
-                expand=True,
+                collapsed=True,  # Start collapsed for pauses
             )
         elif isinstance(event, Condensation):
-            title = f"[bold {_SYSTEM_COLOR}]"
-            title += f"Condensation[/bold {_SYSTEM_COLOR}]"
-            return Panel(
-                content,
+            title = "📦 Condensation"
+            content_widget = Static(content)
+            metrics = self._format_metrics_subtitle()
+            if metrics:
+                content_widget = Static(f"{content}\n\n{metrics}")
+            
+            return Collapsible(
+                content_widget,
                 title=title,
-                subtitle=self._format_metrics_subtitle(),
-                border_style=_SYSTEM_COLOR,
-                expand=True,
+                collapsed=True,  # Start collapsed for condensations
             )
         else:
-            # Fallback panel for unknown event types
-            title = f"[bold {_ERROR_COLOR}]"
-            title += f"UNKNOWN Event: {event.__class__.__name__}[/bold {_ERROR_COLOR}]"
-            return Panel(
-                content,
+            # Fallback for unknown event types
+            title = f"❓ UNKNOWN Event: {event.__class__.__name__}"
+            content_widget = Static(f"{content}\n\nSource: {event.source}")
+            return Collapsible(
+                content_widget,
                 title=title,
-                subtitle=f"({event.source})",
-                border_style=_ERROR_COLOR,
-                padding=_PANEL_PADDING,
-                expand=True,
+                collapsed=True,  # Start collapsed for unknown events
             )
 
     def _format_metrics_subtitle(self) -> str | None:
