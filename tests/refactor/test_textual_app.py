@@ -1,5 +1,6 @@
 """Tests for the textual app functionality."""
 
+import asyncio
 import unittest.mock as mock
 
 import pytest
@@ -463,7 +464,8 @@ class TestStatusLineIndicator:
 class TestPauseFunctionality:
     """Tests for the pause conversation functionality."""
 
-    def test_action_pause_conversation_when_running(self):
+    @mock.patch("asyncio.create_task")
+    def test_action_pause_conversation_when_running(self, mock_create_task):
         """Test that pause action works when conversation is running."""
         app = OpenHandsApp()
 
@@ -479,18 +481,109 @@ class TestPauseFunctionality:
         # Call the pause action
         app.action_pause_conversation()
 
-        # Verify pause was called on the conversation runner
-        mock_runner.pause.assert_called_once()
-
-        # Verify status message was added
+        # Verify status message was added immediately
         mock_main_display.mount.assert_called_once()
         pause_widget = mock_main_display.mount.call_args[0][0]
         assert "Pausing conversation" in str(pause_widget.content)
         assert "status-message" in pause_widget.classes
 
+        # Verify asyncio.create_task was called with the async pause function
+        mock_create_task.assert_called_once()
+        # The argument should be a coroutine from calling
+        # app._pause_conversation_async()
+        args = mock_create_task.call_args[0]
+        assert len(args) == 1
+        # We can't easily test the coroutine content, but we can verify it was called
 
+    @mock.patch("asyncio.to_thread")
+    async def test_pause_conversation_async_success(self, mock_to_thread):
+        """Test the async pause conversation method when successful."""
+        app = OpenHandsApp()
 
-    def test_action_pause_conversation_when_not_running(self):
+        # Mock the conversation runner
+        mock_runner = mock.MagicMock()
+        mock_runner.is_running = True
+        app.conversation_runner = mock_runner
+
+        # Mock asyncio.to_thread to return a completed future
+        mock_to_thread.return_value = asyncio.Future()
+        mock_to_thread.return_value.set_result(None)
+
+        # Mock the update status method
+        app._update_pause_status = mock.MagicMock()
+
+        # Call the async pause method
+        await app._pause_conversation_async()
+
+        # Verify asyncio.to_thread was called with the pause method
+        mock_to_thread.assert_called_once_with(mock_runner.pause)
+
+        # Verify success status was updated
+        app._update_pause_status.assert_called_once_with("Conversation paused.")
+
+    @mock.patch("asyncio.to_thread")
+    async def test_pause_conversation_async_failure(self, mock_to_thread):
+        """Test the async pause conversation method when it fails."""
+        app = OpenHandsApp()
+
+        # Mock the conversation runner
+        mock_runner = mock.MagicMock()
+        mock_runner.is_running = True
+        app.conversation_runner = mock_runner
+
+        # Mock asyncio.to_thread to raise an exception
+        mock_to_thread.side_effect = Exception("Network error")
+
+        # Mock the update status method
+        app._update_pause_status = mock.MagicMock()
+
+        # Call the async pause method
+        await app._pause_conversation_async()
+
+        # Verify asyncio.to_thread was called with the pause method
+        mock_to_thread.assert_called_once_with(mock_runner.pause)
+
+        # Verify error status was updated
+        app._update_pause_status.assert_called_once_with(
+            "Failed to pause: Network error"
+        )
+
+    def test_update_pause_status_success(self):
+        """Test updating pause status with success message."""
+        app = OpenHandsApp()
+
+        # Mock the main display
+        mock_main_display = mock.MagicMock(spec=VerticalScroll)
+        app.query_one = mock.MagicMock(return_value=mock_main_display)
+
+        # Call update with success message
+        app._update_pause_status("Conversation paused.")
+
+        # Verify status widget was mounted
+        mock_main_display.mount.assert_called_once()
+        status_widget = mock_main_display.mount.call_args[0][0]
+        assert "[green]Conversation paused.[/green]" in str(status_widget.content)
+        assert "status-message" in status_widget.classes
+
+    def test_update_pause_status_failure(self):
+        """Test updating pause status with failure message."""
+        app = OpenHandsApp()
+
+        # Mock the main display
+        mock_main_display = mock.MagicMock(spec=VerticalScroll)
+        app.query_one = mock.MagicMock(return_value=mock_main_display)
+
+        # Call update with failure message
+        app._update_pause_status("Failed to pause: Network error")
+
+        # Verify status widget was mounted
+        mock_main_display.mount.assert_called_once()
+        status_widget = mock_main_display.mount.call_args[0][0]
+        assert "[red]Failed to pause: Network error[/red]" in str(status_widget.content)
+        assert "status-message" in status_widget.classes
+
+    @mock.patch("asyncio.create_task")
+    def test_action_pause_conversation_when_not_running(self, mock_create_task):
         """Test that pause action does nothing when conversation is not running."""
         app = OpenHandsApp()
 
@@ -506,13 +599,14 @@ class TestPauseFunctionality:
         # Call the pause action
         app.action_pause_conversation()
 
-        # Verify pause was NOT called on the conversation runner
-        mock_runner.pause.assert_not_called()
-
         # Verify no status message was added
         mock_main_display.mount.assert_not_called()
 
-    def test_action_pause_conversation_when_no_runner(self):
+        # Verify asyncio.create_task was not called
+        mock_create_task.assert_not_called()
+
+    @mock.patch("asyncio.create_task")
+    def test_action_pause_conversation_when_no_runner(self, mock_create_task):
         """Test that pause action does nothing when no conversation runner exists."""
         app = OpenHandsApp()
 
@@ -528,6 +622,9 @@ class TestPauseFunctionality:
 
         # Verify no status message was added
         mock_main_display.mount.assert_not_called()
+
+        # Verify asyncio.create_task was not called
+        mock_create_task.assert_not_called()
 
     def test_escape_key_binding_exists(self):
         """Test that escape key binding is properly configured."""

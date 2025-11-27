@@ -8,6 +8,7 @@ It creates a basic app with:
 - The splash screen content scrolls off as new messages are added
 """
 
+import asyncio
 import os
 import time
 from typing import ClassVar
@@ -328,15 +329,41 @@ class OpenHandsApp(App):
     def action_pause_conversation(self) -> None:
         """Action to handle Esc key binding - pause the running conversation."""
         if self.conversation_runner and self.conversation_runner.is_running:
-            self.conversation_runner.pause()
-
-            # Add a status message to show the pause was triggered
+            # Add a status message immediately to show the pause was triggered
             main_display = self.query_one("#main_display", VerticalScroll)
             pause_widget = Static(
                 "[yellow]Pausing conversation...[/yellow]",
                 classes="status-message",
             )
             main_display.mount(pause_widget)
+
+            # Run the pause operation asynchronously to avoid blocking the UI
+            asyncio.create_task(self._pause_conversation_async())
+
+    async def _pause_conversation_async(self) -> None:
+        """Pause the conversation asynchronously to avoid blocking the UI."""
+        if self.conversation_runner and self.conversation_runner.is_running:
+            try:
+                # Run the blocking pause operation in a thread pool to avoid blocking
+                # the event loop
+                await asyncio.to_thread(self.conversation_runner.pause)
+
+                # Update UI to show pause completed
+                self._update_pause_status("Conversation paused.")
+            except Exception as e:
+                # Handle any errors during pause
+                self._update_pause_status(f"Failed to pause: {e}")
+
+    def _update_pause_status(self, message: str) -> None:
+        """Update the UI with pause status message."""
+        main_display = self.query_one("#main_display", VerticalScroll)
+        status_widget = Static(
+            f"[green]{message}[/green]"
+            if "paused" in message.lower()
+            else f"[red]{message}[/red]",
+            classes="status-message",
+        )
+        main_display.mount(status_widget)
 
     def _handle_exit(self) -> None:
         """Handle exit command with optional confirmation."""
