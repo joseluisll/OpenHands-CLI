@@ -8,7 +8,7 @@ import threading
 from typing import TYPE_CHECKING
 
 from rich.text import Text
-from textual.widgets import Collapsible, Static
+from textual.widgets import Static
 
 from openhands.sdk.conversation.visualizer.base import ConversationVisualizerBase
 from openhands.sdk.event import (
@@ -22,6 +22,7 @@ from openhands.sdk.event import (
 )
 from openhands.sdk.event.base import Event
 from openhands.sdk.event.condenser import Condensation
+from openhands_cli.refactor.non_clickable_collapsible import NonClickableCollapsible
 
 
 if TYPE_CHECKING:
@@ -97,7 +98,7 @@ class TextualVisualizer(ConversationVisualizerBase):
                 # We're in a background thread, use call_from_thread
                 self._app.call_from_thread(self._add_widget_to_ui, collapsible_widget)
 
-    def _add_widget_to_ui(self, widget: Collapsible) -> None:
+    def _add_widget_to_ui(self, widget: NonClickableCollapsible) -> None:
         """Add a widget to the UI (must be called from main thread)."""
         self._container.mount(widget)
 
@@ -230,7 +231,7 @@ class TextualVisualizer(ConversationVisualizerBase):
         # Final fallback
         return fallback_title
 
-    def _create_event_collapsible(self, event: Event) -> Collapsible | None:
+    def _create_event_collapsible(self, event: Event) -> NonClickableCollapsible | None:
         """Create a Collapsible widget for the event with appropriate styling."""
         # Use the event's visualize property for content
         content = event.visualize
@@ -260,7 +261,7 @@ class TextualVisualizer(ConversationVisualizerBase):
             if metrics:
                 content_widget = Static(f"{content}\n\n{metrics}")
 
-            return Collapsible(
+            return NonClickableCollapsible(
                 content_widget,
                 title=title,
                 collapsed=True,  # Start collapsed by default
@@ -268,7 +269,7 @@ class TextualVisualizer(ConversationVisualizerBase):
         elif isinstance(event, ObservationEvent):
             title = self._extract_meaningful_title(event, "Observation")
             content_widget = Static(content)
-            return Collapsible(
+            return NonClickableCollapsible(
                 content_widget,
                 title=title,
                 collapsed=True,  # Start collapsed for observations
@@ -276,7 +277,7 @@ class TextualVisualizer(ConversationVisualizerBase):
         elif isinstance(event, UserRejectObservation):
             title = self._extract_meaningful_title(event, "User Rejected Action")
             content_widget = Static(content)
-            return Collapsible(
+            return NonClickableCollapsible(
                 content_widget,
                 title=title,
                 collapsed=True,  # Start collapsed by default
@@ -301,7 +302,7 @@ class TextualVisualizer(ConversationVisualizerBase):
             if metrics and event.llm_message.role == "assistant":
                 content_widget = Static(f"{content}\n\n{metrics}")
 
-            return Collapsible(
+            return NonClickableCollapsible(
                 content_widget,
                 title=title,
                 collapsed=True,  # Start collapsed by default
@@ -313,7 +314,7 @@ class TextualVisualizer(ConversationVisualizerBase):
             if metrics:
                 content_widget = Static(f"{content}\n\n{metrics}")
 
-            return Collapsible(
+            return NonClickableCollapsible(
                 content_widget,
                 title=title,
                 collapsed=True,  # Start collapsed by default
@@ -321,7 +322,7 @@ class TextualVisualizer(ConversationVisualizerBase):
         elif isinstance(event, PauseEvent):
             title = self._extract_meaningful_title(event, "User Paused")
             content_widget = Static(content)
-            return Collapsible(
+            return NonClickableCollapsible(
                 content_widget,
                 title=title,
                 collapsed=True,  # Start collapsed for pauses
@@ -333,7 +334,7 @@ class TextualVisualizer(ConversationVisualizerBase):
             if metrics:
                 content_widget = Static(f"{content}\n\n{metrics}")
 
-            return Collapsible(
+            return NonClickableCollapsible(
                 content_widget,
                 title=title,
                 collapsed=True,  # Start collapsed for condensations
@@ -344,7 +345,7 @@ class TextualVisualizer(ConversationVisualizerBase):
                 event, f"UNKNOWN Event: {event.__class__.__name__}"
             )
             content_widget = Static(f"{content}\n\nSource: {event.source}")
-            return Collapsible(
+            return NonClickableCollapsible(
                 content_widget,
                 title=title,
                 collapsed=True,  # Start collapsed for unknown events

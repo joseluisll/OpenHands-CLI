@@ -15,13 +15,14 @@ from typing import ClassVar
 from textual.app import App, ComposeResult
 from textual.containers import Container, VerticalScroll
 from textual.timer import Timer
-from textual.widgets import Collapsible, Input, Static
+from textual.widgets import Input, Static
 
 from openhands_cli.locations import WORK_DIR
 from openhands_cli.refactor.autocomplete import EnhancedAutoComplete
 from openhands_cli.refactor.commands import COMMANDS, is_valid_command, show_help
 from openhands_cli.refactor.conversation_runner import MinimalConversationRunner
 from openhands_cli.refactor.exit_modal import ExitConfirmationModal
+from openhands_cli.refactor.non_clickable_collapsible import NonClickableCollapsible
 from openhands_cli.refactor.richlog_visualizer import TextualVisualizer
 from openhands_cli.refactor.splash import get_welcome_message
 from openhands_cli.refactor.theme import OPENHANDS_THEME
@@ -320,7 +321,7 @@ class OpenHandsApp(App):
         """Action to handle Ctrl+E key binding - toggle expand/collapse all
         collapsible widgets."""
         main_display = self.query_one("#main_display", VerticalScroll)
-        collapsibles = main_display.query(Collapsible)
+        collapsibles = main_display.query(NonClickableCollapsible)
 
         # Check if any are expanded - if so, collapse all; otherwise expand all
         any_expanded = any(not collapsible.collapsed for collapsible in collapsibles)
