@@ -27,7 +27,9 @@ UVX_SECTION="
 
 ## 🚀 Try this PR
 
-\`uvx --python 3.12 openhands@$BRANCH_NAME\`"
+\`\`\`bash
+uvx --python 3.12 openhands@$BRANCH_NAME
+\`\`\`"
 
 # Check if the uvx section already exists in the description
 if echo "$CURRENT_DESCRIPTION" | grep -q "## 🚀 Try this PR"; then
