@@ -26,7 +26,9 @@ def create_main_parser() -> argparse.ArgumentParser:
                 openhands --always-approve          # Always-approve mode
                 openhands --llm-approve             # LLM-based approval mode
                 openhands serve                     # Launch GUI server
-                openhands serve --gpu               # Launch with GPU support
+                openhands serve --gpu               # Launch GUI server with GPU support
+                openhands acp                       # Start as Agent-Client Protocol
+                                                      server for clients like Zed IDE
         """,
     )
 
@@ -72,7 +74,7 @@ def create_main_parser() -> argparse.ArgumentParser:
         ),
     )
 
-    # Only serve as subcommand
+    # Subcommands
     subparsers = parser.add_subparsers(dest="command", help="Additional commands")
 
     # Add serve subcommand
@@ -86,6 +88,11 @@ def create_main_parser() -> argparse.ArgumentParser:
     )
     serve_parser.add_argument(
         "--gpu", action="store_true", help="Enable GPU support in the Docker container"
+    )
+
+    # Add ACP subcommand
+    subparsers.add_parser(
+        "acp", help="Start OpenHands as an Agent Client Protocol (ACP) agent"
     )
 
     return parser

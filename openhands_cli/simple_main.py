@@ -38,6 +38,12 @@ def main() -> None:
             from openhands_cli.gui_launcher import launch_gui_server
 
             launch_gui_server(mount_cwd=args.mount_cwd, gpu=args.gpu)
+        elif args.command == "acp":
+            import asyncio
+
+            from openhands_cli.acp_impl.agent import run_acp_server
+
+            asyncio.run(run_acp_server())
         else:
             # Default CLI behavior - no subcommand needed
             # Import agent_chat only when needed
