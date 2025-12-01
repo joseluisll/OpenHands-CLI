@@ -41,6 +41,17 @@ _ERROR_COLOR = "red"
 _ACTION_COLOR = "blue"
 _MESSAGE_ASSISTANT_COLOR = _ACTION_COLOR
 
+# CSS-compatible color mapping for borders
+_CSS_COLOR_MAP = {
+    "yellow": "$warning",  # Use theme warning color (yellow)
+    "gold3": "$primary",  # Use theme primary color (gold)
+    "bright_yellow": "$primary",  # Use theme primary color
+    "magenta": "#ff69b4",  # Hot pink for system events
+    "bright_black": "$text-muted",  # Muted text color
+    "red": "$error",  # Use theme error color
+    "blue": "$accent",  # Use theme accent color (blue)
+}
+
 DEFAULT_HIGHLIGHT_REGEX = {
     r"^Reasoning:": f"bold {_THOUGHT_COLOR}",
     r"^Thought:": f"bold {_THOUGHT_COLOR}",
@@ -53,6 +64,31 @@ DEFAULT_HIGHLIGHT_REGEX = {
     r"\*\*(.*?)\*\*": "bold",
     r"\*(.*?)\*": "italic",
 }
+
+
+def _get_event_border_color(event: Event) -> str:
+    """Get the CSS border color for an event type."""
+    if isinstance(event, ActionEvent):
+        return _CSS_COLOR_MAP.get(_ACTION_COLOR, "$secondary")
+    elif isinstance(event, ObservationEvent):
+        return _CSS_COLOR_MAP.get(_OBSERVATION_COLOR, "$secondary")
+    elif isinstance(event, UserRejectObservation):
+        return _CSS_COLOR_MAP.get(_ERROR_COLOR, "$secondary")
+    elif isinstance(event, MessageEvent):
+        if event.llm_message and event.llm_message.role == "user":
+            return _CSS_COLOR_MAP.get(_MESSAGE_USER_COLOR, "$secondary")
+        else:
+            return _CSS_COLOR_MAP.get(_MESSAGE_ASSISTANT_COLOR, "$secondary")
+    elif isinstance(event, AgentErrorEvent):
+        return _CSS_COLOR_MAP.get(_ERROR_COLOR, "$secondary")
+    elif isinstance(event, PauseEvent):
+        return _CSS_COLOR_MAP.get(_PAUSE_COLOR, "$secondary")
+    elif isinstance(event, SystemPromptEvent):
+        return _CSS_COLOR_MAP.get(_SYSTEM_COLOR, "$secondary")
+    elif isinstance(event, Condensation):
+        return "$text-muted"  # Neutral color for condensations
+    else:
+        return "$secondary"  # Default color for unknown events
 
 
 class TextualVisualizer(ConversationVisualizerBase):
@@ -265,6 +301,7 @@ class TextualVisualizer(ConversationVisualizerBase):
                 content_widget,
                 title=title,
                 collapsed=True,  # Start collapsed by default
+                border_color=_get_event_border_color(event),
             )
         elif isinstance(event, ObservationEvent):
             title = self._extract_meaningful_title(event, "Observation")
@@ -273,6 +310,7 @@ class TextualVisualizer(ConversationVisualizerBase):
                 content_widget,
                 title=title,
                 collapsed=True,  # Start collapsed for observations
+                border_color=_get_event_border_color(event),
             )
         elif isinstance(event, UserRejectObservation):
             title = self._extract_meaningful_title(event, "User Rejected Action")
@@ -281,6 +319,7 @@ class TextualVisualizer(ConversationVisualizerBase):
                 content_widget,
                 title=title,
                 collapsed=True,  # Start collapsed by default
+                border_color=_get_event_border_color(event),
             )
         elif isinstance(event, MessageEvent):
             if (
@@ -306,6 +345,7 @@ class TextualVisualizer(ConversationVisualizerBase):
                 content_widget,
                 title=title,
                 collapsed=True,  # Start collapsed by default
+                border_color=_get_event_border_color(event),
             )
         elif isinstance(event, AgentErrorEvent):
             title = self._extract_meaningful_title(event, "Agent Error")
@@ -318,6 +358,7 @@ class TextualVisualizer(ConversationVisualizerBase):
                 content_widget,
                 title=title,
                 collapsed=True,  # Start collapsed by default
+                border_color=_get_event_border_color(event),
             )
         elif isinstance(event, PauseEvent):
             title = self._extract_meaningful_title(event, "User Paused")
@@ -326,6 +367,7 @@ class TextualVisualizer(ConversationVisualizerBase):
                 content_widget,
                 title=title,
                 collapsed=True,  # Start collapsed for pauses
+                border_color=_get_event_border_color(event),
             )
         elif isinstance(event, Condensation):
             title = self._extract_meaningful_title(event, "Condensation")
@@ -338,6 +380,7 @@ class TextualVisualizer(ConversationVisualizerBase):
                 content_widget,
                 title=title,
                 collapsed=True,  # Start collapsed for condensations
+                border_color=_get_event_border_color(event),
             )
         else:
             # Fallback for unknown event types
@@ -349,6 +392,7 @@ class TextualVisualizer(ConversationVisualizerBase):
                 content_widget,
                 title=title,
                 collapsed=True,  # Start collapsed for unknown events
+                border_color=_get_event_border_color(event),
             )
 
     def _format_metrics_subtitle(self) -> str | None:

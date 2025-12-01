@@ -12,6 +12,7 @@ from textual.binding import Binding, BindingType
 from textual.containers import Container, Horizontal
 from textual.content import Content, ContentText
 from textual.css.query import NoMatches
+from textual.css.types import EdgeType
 from textual.message import Message
 from textual.reactive import reactive
 from textual.widget import Widget
@@ -179,13 +180,14 @@ class NonClickableCollapsible(Widget):
     ALLOW_MAXIMIZE = True
     collapsed = reactive(True, init=False)
     title = reactive("Toggle")
+    border_color = reactive("$secondary", init=False)
 
     DEFAULT_CSS = """
     NonClickableCollapsible {
         width: 1fr;
         height: auto;
-        background: $surface-darken-1;
-        border-top: hkey $background;
+        background: $background;
+        border-left: thick $secondary;
         padding-bottom: 1;
         padding-left: 1;
 
@@ -233,6 +235,7 @@ class NonClickableCollapsible(Widget):
         collapsed: bool = True,
         collapsed_symbol: str = "▶",
         expanded_symbol: str = "▼",
+        border_color: str = "$secondary",
         name: str | None = None,
         id: str | None = None,
         classes: str | None = None,
@@ -246,6 +249,7 @@ class NonClickableCollapsible(Widget):
             collapsed: Default status of the contents.
             collapsed_symbol: Collapsed symbol before the title.
             expanded_symbol: Expanded symbol before the title.
+            border_color: CSS color for the left border.
             name: The name of the collapsible.
             id: The ID of the collapsible in the DOM.
             classes: The CSS classes of the collapsible.
@@ -261,6 +265,7 @@ class NonClickableCollapsible(Widget):
         self.title = title
         self._contents_list: list[Widget] = list(children)
         self.collapsed = collapsed
+        self.border_color = border_color
 
     def _on_non_clickable_collapsible_title_toggle(
         self, event: NonClickableCollapsibleTitle.Toggle
@@ -332,6 +337,12 @@ class NonClickableCollapsible(Widget):
 
     def _watch_title(self, title: str) -> None:
         self._title.label = title
+
+    def _watch_border_color(self, border_color: str) -> None:
+        """Update border color when reactive property changes."""
+        if self.is_mounted:
+            edge_type: EdgeType = "thick"
+            self.styles.border_left = (edge_type, border_color)
 
     def _extract_content_text(self) -> str:
         """Extract plain text content from the collapsible body."""
