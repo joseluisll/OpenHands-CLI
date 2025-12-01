@@ -520,3 +520,67 @@ async def test_new_session_with_mcp_servers(acp_agent, tmp_path):
         assert mcp_servers_dict["test-server"]["args"] == ["server.js"]
         assert mcp_servers_dict["test-server"]["env"] == {}  # Transformed from []
         assert "name" not in mcp_servers_dict["test-server"]  # Name used as key
+
+
+@pytest.mark.asyncio
+async def test_new_session_with_malformed_mcp_json(acp_agent, tmp_path, monkeypatch):
+    """Test that malformed mcp.json raises a clear error in ACP.
+
+    This test verifies that when users have a malformed mcp.json file,
+    the error is not silently swallowed but instead raises a RequestError
+    with helpful details.
+    """
+    from pathlib import Path
+
+    from acp import RequestError
+
+    from openhands_cli.locations import MCP_CONFIG_FILE
+
+    # Patch PERSISTENCE_DIR to use tmp_path
+    monkeypatch.setattr(
+        "openhands_cli.tui.settings.store.PERSISTENCE_DIR", str(tmp_path)
+    )
+    monkeypatch.setattr("openhands_cli.locations.PERSISTENCE_DIR", str(tmp_path))
+
+    # Create malformed mcp.json in PERSISTENCE_DIR (trailing comma makes it invalid)
+    malformed_json = """{
+  "mcpServers": {
+    "tavily-remote": {
+      "command": "npx",
+      "args": ["-y", "mcp-remote", "https://mcp.tavily.com/mcp/?tavilyApiKey=test"]
+    },
+    "nano-banana": {
+      "command": "npx",
+      "args": ["nano-banana-mcp"],
+    }
+  }
+}"""
+    mcp_file = Path(tmp_path) / MCP_CONFIG_FILE
+    mcp_file.write_text(malformed_json)
+
+    # Create a valid agent config file so load_agent_specs doesn't fail for that reason
+    from openhands.sdk import LLM, Agent
+
+    agent = Agent(
+        llm=LLM(model="test-model", api_key="test-key", usage_id="test-service"),
+        tools=[],
+    )
+    agent_settings_path = Path(tmp_path) / "agent_settings.json"
+    agent_settings_path.write_text(
+        agent.model_dump_json(context={"expose_secrets": True})
+    )
+
+    request = NewSessionRequest(cwd=str(tmp_path), mcpServers=[])
+
+    # Should raise RequestError with helpful message
+    with pytest.raises(RequestError) as exc_info:
+        await acp_agent.newSession(request)
+
+    error = exc_info.value
+
+    # Verify error contains helpful information in the data field
+    assert error.data is not None
+    assert "reason" in error.data
+    assert "Invalid MCP configuration" in error.data["reason"]
+    assert "help" in error.data
+    assert "mcp.json" in error.data["help"]

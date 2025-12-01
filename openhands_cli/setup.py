@@ -26,6 +26,12 @@ class MissingAgentSpec(Exception):
     pass
 
 
+class MCPConfigurationError(Exception):
+    """Raised when MCP configuration file is malformed or invalid."""
+
+    pass
+
+
 def load_agent_specs(
     conversation_id: str | None = None,
     mcp_servers: dict[str, dict[str, Any]] | None = None,

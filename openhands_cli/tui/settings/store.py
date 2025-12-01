@@ -1,6 +1,7 @@
 # openhands_cli/settings/store.py
 from __future__ import annotations
 
+import logging
 from pathlib import Path
 from typing import Any
 
@@ -20,6 +21,9 @@ from openhands_cli.locations import (
 from openhands_cli.utils import get_llm_metadata, should_set_litellm_extra_body
 
 
+logger = logging.getLogger(__name__)
+
+
 class AgentStore:
     """Single source of truth for persisting/retrieving AgentSpec."""
 
@@ -27,12 +31,31 @@ class AgentStore:
         self.file_store = LocalFileStore(root=PERSISTENCE_DIR)
 
     def load_mcp_configuration(self) -> dict[str, Any]:
+        """Load MCP configuration from file.
+
+        Returns:
+            Dict of MCP servers configuration, or empty dict if file doesn't exist.
+
+        Raises:
+            MCPConfigurationError: If the configuration file exists but is malformed.
+        """
+        from openhands_cli.setup import MCPConfigurationError
+
+        mcp_config_path = Path(self.file_store.root) / MCP_CONFIG_FILE
+
+        # If file doesn't exist, return empty dict (this is expected)
+        if not mcp_config_path.exists():
+            return {}
+
         try:
-            mcp_config_path = Path(self.file_store.root) / MCP_CONFIG_FILE
             mcp_config = MCPConfig.from_file(mcp_config_path)
             return mcp_config.to_dict()["mcpServers"]
-        except Exception:
-            return {}
+        except Exception as e:
+            # Log and re-raise as MCPConfigurationError for proper handling
+            logger.error(f"Failed to load MCP configuration: {e}")
+            raise MCPConfigurationError(
+                f"Invalid MCP configuration file at {mcp_config_path}: {e}"
+            ) from e
 
     def load_project_skills(self) -> list:
         """Load skills project-specific directories."""
@@ -60,6 +83,8 @@ class AgentStore:
         return all_skills
 
     def load(self, session_id: str | None = None) -> Agent | None:
+        from openhands_cli.setup import MCPConfigurationError
+
         try:
             str_spec = self.file_store.read(AGENT_SETTINGS_PATH)
             agent = Agent.model_validate_json(str_spec)
@@ -121,6 +146,9 @@ class AgentStore:
             return agent
         except FileNotFoundError:
             return None
+        except MCPConfigurationError:
+            # Re-raise MCP configuration errors for proper handling upstream
+            raise
         except Exception:
             print_formatted_text(
                 HTML("\n<red>Agent configuration file is corrupted!</red>")
