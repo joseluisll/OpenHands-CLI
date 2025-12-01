@@ -96,7 +96,7 @@ class OpenHandsApp(App):
     }
 
     #input_area {
-        height: 8;
+        height: 9;
         dock: bottom;
         background: $background;
         padding: 1;
@@ -222,8 +222,8 @@ class OpenHandsApp(App):
             # Add enhanced autocomplete for the input (commands and file paths)
             yield EnhancedAutoComplete(text_input, command_candidates=COMMANDS)
 
-        # Status line - shows work directory and timer
-        yield Static(id="status_line")
+            # Status line - shows work directory and timer (inside input area)
+            yield Static(id="status_line")
 
         # Footer - shows available key bindings
         yield Footer()
