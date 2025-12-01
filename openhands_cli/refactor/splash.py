@@ -47,15 +47,20 @@ def get_splash_content(conversation_id: str | None = None, *, theme: Theme) -> d
         "banner": banner,
         "version": f"OpenHands CLI v{version_info.current_version}",
         "status_text": "All set up!",
-        "conversation_text": f"[{accent_color}]Initialized conversation[/] {conversation_id}",
+        "conversation_text": (
+            f"[{accent_color}]Initialized conversation[/] {conversation_id}"
+        ),
         "conversation_id": conversation_id,
         "instructions_header": f"[{primary_color}]What do you want to build?[/]",
         "instructions": [
             "1. Ask questions, edit files, or run commands.",
             "2. Use @ to look up a file in the folder structure",
-            "3. Type /help for help or / to immediately scroll through available commands"
+            (
+                "3. Type /help for help or / to immediately scroll through "
+                "available commands"
+            ),
         ],
-        "update_notice": None
+        "update_notice": None,
     }
 
     # Add update notification if needed

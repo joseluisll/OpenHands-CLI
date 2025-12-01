@@ -200,7 +200,9 @@ class OpenHandsApp(App):
             yield Static(id="splash_version", classes="splash-version")
             yield Static(id="splash_status", classes="status-panel")
             yield Static(id="splash_conversation", classes="conversation-panel")
-            yield Static(id="splash_instructions_header", classes="splash-instruction-header")
+            yield Static(
+                id="splash_instructions_header", classes="splash-instruction-header"
+            )
             yield Static(id="splash_instructions", classes="splash-instruction")
             yield Static(id="splash_update_notice", classes="splash-update-notice")
 

@@ -9,26 +9,59 @@ from typing import ClassVar
 from textual import events
 from textual.app import ComposeResult
 from textual.binding import Binding, BindingType
-from textual.containers import Container
+from textual.containers import Container, Horizontal
 from textual.content import Content, ContentText
 from textual.css.query import NoMatches
 from textual.message import Message
 from textual.reactive import reactive
 from textual.widget import Widget
-from textual.widgets import Static
+from textual.widgets import Button, Static
 
 
-class NonClickableCollapsibleTitle(Static, can_focus=False):
+class NonClickableCollapsibleTitle(Container, can_focus=False):
     """Title and symbol for the NonClickableCollapsible that ignores click events."""
 
     ALLOW_SELECT = False
     DEFAULT_CSS = """
     NonClickableCollapsibleTitle {
-        width: auto;
+        width: 100%;
         height: auto;
         padding: 0 1;
         text-style: $block-cursor-blurred-text-style;
         color: $block-cursor-blurred-foreground;
+    }
+
+    NonClickableCollapsibleTitle Horizontal {
+        width: 100%;
+        height: auto;
+    }
+
+    NonClickableCollapsibleTitle .title-text {
+        width: 1fr;
+        height: auto;
+    }
+
+    NonClickableCollapsibleTitle .copy-button {
+        width: auto;
+        height: 1;
+        min-width: 4;
+        margin-left: 1;
+        background: transparent;
+        border: none;
+        color: $text-muted;
+        text-style: none;
+    }
+
+    NonClickableCollapsibleTitle .copy-button:hover {
+        background: $surface-lighten-1;
+        color: $text;
+        text-style: bold;
+    }
+
+    NonClickableCollapsibleTitle .copy-button:focus {
+        background: $surface-lighten-2;
+        color: $text;
+        text-style: bold;
     }
     """
 
@@ -52,25 +85,63 @@ class NonClickableCollapsibleTitle(Static, can_focus=False):
         self.expanded_symbol = expanded_symbol
         self.label = Content.from_text(label)
         self.collapsed = collapsed
+        self._title_static: Static | None = None
 
     class Toggle(Message):
         """Request toggle."""
 
+    class CopyRequested(Message):
+        """Request to copy content."""
+
+    def compose(self) -> ComposeResult:
+        """Compose the title with copy button."""
+        with Horizontal():
+            self._title_static = Static(classes="title-text")
+            yield self._title_static
+            yield Button("📋", id="copy-btn", classes="copy-button")
+
+    def on_mount(self) -> None:
+        """Initialize the title display."""
+        self._update_label()
+
     async def _on_click(self, event: events.Click) -> None:
         """Override click handler to do nothing - disable click interaction."""
-        event.stop()
-        event.prevent_default()
-        # Do nothing - this disables click-to-toggle functionality
+        # Only prevent default if the click wasn't on the copy button
+        if (
+            not event.control
+            or not hasattr(event.control, "id")
+            or event.control.id != "copy-btn"
+        ):
+            event.stop()
+            event.prevent_default()
 
     async def _on_mouse_down(self, event: events.MouseDown) -> None:
         """Override mouse down to prevent focus and interaction."""
-        event.stop()
-        event.prevent_default()
+        # Only prevent default if the click wasn't on the copy button
+        if (
+            not event.control
+            or not hasattr(event.control, "id")
+            or event.control.id != "copy-btn"
+        ):
+            event.stop()
+            event.prevent_default()
 
     async def _on_mouse_up(self, event: events.MouseUp) -> None:
         """Override mouse up to prevent focus and interaction."""
-        event.stop()
-        event.prevent_default()
+        # Only prevent default if the click wasn't on the copy button
+        if (
+            not event.control
+            or not hasattr(event.control, "id")
+            or event.control.id != "copy-btn"
+        ):
+            event.stop()
+            event.prevent_default()
+
+    def on_button_pressed(self, event: Button.Pressed) -> None:
+        """Handle copy button press."""
+        if event.button.id == "copy-btn":
+            event.stop()  # Prevent this from bubbling up
+            self.post_message(self.CopyRequested())
 
     def action_toggle_collapsible(self) -> None:
         """Toggle the state of the parent collapsible."""
@@ -80,11 +151,17 @@ class NonClickableCollapsibleTitle(Static, can_focus=False):
         return Content.from_text(label)
 
     def _update_label(self) -> None:
+        """Update the title text display."""
+        if self._title_static is None:
+            return
+
         assert isinstance(self.label, Content)
         if self.collapsed:
-            self.update(Content.assemble(self.collapsed_symbol, " ", self.label))
+            content = Content.assemble(self.collapsed_symbol, " ", self.label)
         else:
-            self.update(Content.assemble(self.expanded_symbol, " ", self.label))
+            content = Content.assemble(self.expanded_symbol, " ", self.label)
+
+        self._title_static.update(content)
 
     def _watch_label(self) -> None:
         self._update_label()
@@ -188,6 +265,33 @@ class NonClickableCollapsible(Widget):
         event.stop()
         self.collapsed = not self.collapsed
 
+    def _on_non_clickable_collapsible_title_copy_requested(
+        self, event: NonClickableCollapsibleTitle.CopyRequested
+    ) -> None:
+        """Handle copy request from the title."""
+        event.stop()
+        content_text = self._extract_content_text()
+        if content_text:
+            try:
+                self.app.copy_to_clipboard(content_text)
+                self.app.notify(
+                    "Content copied to clipboard!", title="Copy Success", timeout=2
+                )
+            except Exception as e:
+                self.app.notify(
+                    f"Failed to copy: {str(e)}",
+                    title="Copy Error",
+                    severity="error",
+                    timeout=3,
+                )
+        else:
+            self.app.notify(
+                "No content to copy",
+                title="Copy Warning",
+                severity="warning",
+                timeout=2,
+            )
+
     def _watch_collapsed(self, collapsed: bool) -> None:
         """Update collapsed state when reactive is changed."""
         self._update_collapsed(collapsed)
@@ -225,3 +329,32 @@ class NonClickableCollapsible(Widget):
 
     def _watch_title(self, title: str) -> None:
         self._title.label = title
+
+    def _extract_content_text(self) -> str:
+        """Extract plain text content from the collapsible body."""
+        content_parts = []
+
+        # Iterate through all content widgets
+        for widget in self._contents_list:
+            try:
+                # Try to get renderable content (for Static widgets)
+                if hasattr(widget, "renderable"):
+                    renderable = getattr(widget, "renderable")
+                    if hasattr(renderable, "plain"):
+                        # Rich Text objects have a .plain property
+                        content_parts.append(str(getattr(renderable, "plain")))
+                    else:
+                        # Fallback to string representation
+                        content_parts.append(str(renderable))
+                # Try custom content extraction method
+                elif hasattr(widget, "get_content_text"):
+                    content_text = getattr(widget, "get_content_text")()
+                    content_parts.append(str(content_text))
+                else:
+                    # Fallback: try to get text representation
+                    content_parts.append(str(widget))
+            except Exception:
+                # If all else fails, use string representation
+                content_parts.append(str(widget))
+
+        return "\n".join(content_parts).strip()
