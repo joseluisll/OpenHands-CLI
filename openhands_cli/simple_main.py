@@ -56,7 +56,11 @@ def main() -> None:
                 # Use experimental textual-based UI
                 from openhands_cli.refactor.textual_app import main as textual_main
 
-                conversation_id = textual_main(resume_conversation_id=args.resume)
+                queued_inputs = create_seeded_instructions_from_args(args)
+                conversation_id = textual_main(
+                    resume_conversation_id=args.resume,
+                    queued_inputs=queued_inputs,
+                )
                 print("Goodbye! 👋")
                 print(f"Conversation ID: {conversation_id.hex}")
                 print(

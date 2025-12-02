@@ -52,6 +52,7 @@ class OpenHandsApp(App):
         self,
         exit_confirmation: bool = True,
         resume_conversation_id: uuid.UUID | None = None,
+        queued_inputs: list[str] | None = None,
         **kwargs,
     ):
         """Initialize the app with custom OpenHands theme.
@@ -60,6 +61,7 @@ class OpenHandsApp(App):
             exit_confirmation: If True, show confirmation modal before exit.
                              If False, exit immediately.
             resume_conversation_id: Optional conversation ID to resume.
+            queued_inputs: Optional list of input strings to queue at the start.
         """
         super().__init__(**kwargs)
 
@@ -70,6 +72,9 @@ class OpenHandsApp(App):
         self.conversation_id = (
             resume_conversation_id if resume_conversation_id else uuid.uuid4()
         )
+
+        # Store queued inputs (copy to prevent mutating caller's list)
+        self.pending_inputs = list(queued_inputs) if queued_inputs else []
 
         # Initialize conversation runner (updated with write callback in on_mount)
         self.conversation_runner = None
@@ -379,6 +384,31 @@ class OpenHandsApp(App):
 
         # Focus the input widget
         self.query_one("#user_input", Input).focus()
+
+        # Process any queued inputs
+        self._process_queued_inputs()
+
+    def _process_queued_inputs(self) -> None:
+        """Process any queued inputs from --task or --file arguments.
+        
+        Currently processes only the first queued input immediately.
+        In the future, this could be extended to process multiple instructions
+        from the queue one by one as the agent completes each task.
+        """
+        if not self.pending_inputs:
+            return
+
+        # Process the first queued input immediately
+        user_input = self.pending_inputs.pop(0)
+
+        # Add the user message to the main display as a Static widget
+        main_display = self.query_one("#main_display", VerticalScroll)
+        user_message_widget = Static(f"> {user_input}", classes="user-message")
+        main_display.mount(user_message_widget)
+        main_display.scroll_end(animate=False)
+
+        # Handle the message asynchronously
+        asyncio.create_task(self._handle_user_message(user_input))
 
     def get_work_dir_display(self) -> str:
         """Get the work directory display string."""
@@ -793,16 +823,20 @@ class OpenHandsApp(App):
             await self._handle_user_message(content)
 
 
-def main(resume_conversation_id: str | None = None):
+def main(
+    resume_conversation_id: str | None = None, queued_inputs: list[str] | None = None
+):
     """Run the textual app.
 
     Args:
         resume_conversation_id: Optional conversation ID to resume.
+        queued_inputs: Optional list of input strings to queue at the start.
     """
     app = OpenHandsApp(
         resume_conversation_id=uuid.UUID(resume_conversation_id)
         if resume_conversation_id
-        else None
+        else None,
+        queued_inputs=queued_inputs,
     )
     app.run()
 
