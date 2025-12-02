@@ -67,7 +67,9 @@ class OpenHandsApp(App):
         self.exit_confirmation = exit_confirmation
 
         # Store resume conversation ID
-        self.resume_conversation_id = resume_conversation_id
+        self.conversation_id = (
+            resume_conversation_id if resume_conversation_id else uuid.uuid4()
+        )
 
         # Initialize conversation runner (updated with write callback in on_mount)
         self.conversation_runner = None
@@ -332,7 +334,9 @@ class OpenHandsApp(App):
     def _initialize_main_ui(self) -> None:
         """Initialize the main UI components."""
         # Get structured splash content
-        splash_content = get_splash_content(theme=OPENHANDS_THEME)
+        splash_content = get_splash_content(
+            conversation_id=self.conversation_id.hex, theme=OPENHANDS_THEME
+        )
 
         # Update individual splash widgets
         self.query_one("#splash_banner", Static).update(splash_content["banner"])
@@ -363,18 +367,12 @@ class OpenHandsApp(App):
         # Initialize conversation runner with visualizer that can add widgets
         visualizer = TextualVisualizer(main_display, self)
 
-        self.conversation_runner = ConversationRunner(visualizer)
+        self.conversation_runner = ConversationRunner(self.conversation_id, visualizer)
 
         # Set up confirmation callback
         self.conversation_runner.set_confirmation_callback(
             self._handle_confirmation_request
         )
-
-        # If resuming a conversation, initialize it now
-        if self.resume_conversation_id:
-            self.conversation_runner.initialize_conversation(
-                conversation_id=self.resume_conversation_id
-            )
 
         # Initialize status line
         self.update_status_line()
@@ -795,14 +793,20 @@ class OpenHandsApp(App):
             await self._handle_user_message(content)
 
 
-def main(resume_conversation_id: uuid.UUID | None = None):
+def main(resume_conversation_id: str | None = None):
     """Run the textual app.
 
     Args:
         resume_conversation_id: Optional conversation ID to resume.
     """
-    app = OpenHandsApp(resume_conversation_id=resume_conversation_id)
+    app = OpenHandsApp(
+        resume_conversation_id=uuid.UUID(resume_conversation_id)
+        if resume_conversation_id
+        else None
+    )
     app.run()
+
+    return app.conversation_id
 
 
 if __name__ == "__main__":
