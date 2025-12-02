@@ -35,17 +35,14 @@ class TestCommandsAndAutocomplete:
 
     async def test_autocomplete_widget_exists(self):
         """Test that CommandAutoComplete widget is created."""
-        from openhands_cli.refactor.textual_app import get_welcome_message
-
-        with mock.patch.object(get_welcome_message, "__call__", return_value="test"):
-            app = OpenHandsApp()
-            async with app.run_test() as pilot:
-                # Check that EnhancedAutoComplete widget exists
-                autocomplete = pilot.app.query_one(EnhancedAutoComplete)
-                assert isinstance(autocomplete, EnhancedAutoComplete)
-                assert isinstance(
-                    autocomplete, AutoComplete
-                )  # Should also be an AutoComplete
+        app = OpenHandsApp()
+        async with app.run_test() as pilot:
+            # Check that EnhancedAutoComplete widget exists
+            autocomplete = pilot.app.query_one(EnhancedAutoComplete)
+            assert isinstance(autocomplete, EnhancedAutoComplete)
+            assert isinstance(
+                autocomplete, AutoComplete
+            )  # Should also be an AutoComplete
 
     def test_handle_command_help(self):
         """Test that /help command displays help information."""
@@ -356,15 +353,17 @@ class TestCommandsAndAutocomplete:
 
         # Should contain expected commands
         assert "/help" in valid_commands
+        assert "/confirm" in valid_commands
         assert "/exit" in valid_commands
 
         # Should have correct count
-        assert len(valid_commands) == 2
+        assert len(valid_commands) == 3
 
     def test_is_valid_command(self):
         """Test that is_valid_command correctly identifies valid commands."""
         # Valid commands
         assert is_valid_command("/help") is True
+        assert is_valid_command("/confirm") is True
         assert is_valid_command("/exit") is True
 
         # Invalid commands

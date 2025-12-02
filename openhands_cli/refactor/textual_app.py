@@ -14,19 +14,23 @@ import time
 from typing import ClassVar
 
 from textual.app import App, ComposeResult
-from textual.containers import Container, VerticalScroll
+from textual.containers import Container, Horizontal, VerticalScroll
 from textual.timer import Timer
 from textual.widgets import Footer, Input, Static
 
 from openhands_cli.locations import WORK_DIR
 from openhands_cli.refactor.autocomplete import EnhancedAutoComplete
 from openhands_cli.refactor.commands import COMMANDS, is_valid_command, show_help
-from openhands_cli.refactor.conversation_runner import MinimalConversationRunner
+from openhands_cli.refactor.confirmation_conversation_runner import (
+    ConfirmationConversationRunner,
+)
+from openhands_cli.refactor.confirmation_panel import ConfirmationSidePanel
 from openhands_cli.refactor.exit_modal import ExitConfirmationModal
 from openhands_cli.refactor.non_clickable_collapsible import NonClickableCollapsible
 from openhands_cli.refactor.richlog_visualizer import TextualVisualizer
 from openhands_cli.refactor.splash import get_splash_content
 from openhands_cli.refactor.theme import OPENHANDS_THEME
+from openhands_cli.user_actions.types import UserConfirmation
 
 
 class OpenHandsApp(App):
@@ -58,6 +62,9 @@ class OpenHandsApp(App):
         self.conversation_start_time: float | None = None
         self.timer_update_task: Timer | None = None
 
+        # Confirmation panel tracking
+        self.confirmation_panel: ConfirmationSidePanel | None = None
+
         # Register the custom theme
         self.register_theme(OPENHANDS_THEME)
 
@@ -68,6 +75,11 @@ class OpenHandsApp(App):
     Screen {
         layout: vertical;
         background: $background;
+    }
+
+    #content_area {
+        height: 1fr;
+        layout: horizontal;
     }
 
     #main_display {
@@ -198,18 +210,20 @@ class OpenHandsApp(App):
 
     def compose(self) -> ComposeResult:
         """Create child widgets for the app."""
-        # Main scrollable display - using VerticalScroll to support Collapsible widgets
-        with VerticalScroll(id="main_display"):
-            # Add initial splash content as individual widgets
-            yield Static(id="splash_banner", classes="splash-banner")
-            yield Static(id="splash_version", classes="splash-version")
-            yield Static(id="splash_status", classes="status-panel")
-            yield Static(id="splash_conversation", classes="conversation-panel")
-            yield Static(
-                id="splash_instructions_header", classes="splash-instruction-header"
-            )
-            yield Static(id="splash_instructions", classes="splash-instruction")
-            yield Static(id="splash_update_notice", classes="splash-update-notice")
+        # Content area - horizontal layout for main display and optional confirmation
+        with Horizontal(id="content_area"):
+            # Main scrollable display - using VerticalScroll to support Collapsible
+            with VerticalScroll(id="main_display"):
+                # Add initial splash content as individual widgets
+                yield Static(id="splash_banner", classes="splash-banner")
+                yield Static(id="splash_version", classes="splash-version")
+                yield Static(id="splash_status", classes="status-panel")
+                yield Static(id="splash_conversation", classes="conversation-panel")
+                yield Static(
+                    id="splash_instructions_header", classes="splash-instruction-header"
+                )
+                yield Static(id="splash_instructions", classes="splash-instruction")
+                yield Static(id="splash_update_notice", classes="splash-update-notice")
 
         # Input area - docked to bottom
         with Container(id="input_area"):
@@ -262,7 +276,12 @@ class OpenHandsApp(App):
         # Initialize conversation runner with visualizer that can add widgets
         visualizer = TextualVisualizer(main_display, self)
 
-        self.conversation_runner = MinimalConversationRunner(visualizer)
+        self.conversation_runner = ConfirmationConversationRunner(visualizer)
+
+        # Set up confirmation callback
+        self.conversation_runner.set_confirmation_callback(
+            self._handle_confirmation_request
+        )
 
         # Initialize status line
         self.update_status_line()
@@ -346,6 +365,8 @@ class OpenHandsApp(App):
 
         if command == "/help":
             show_help(main_display)
+        elif command == "/confirm":
+            self._handle_confirm_command()
         elif command == "/exit":
             self._handle_exit()
         else:
@@ -455,6 +476,83 @@ class OpenHandsApp(App):
             classes="status-message",
         )
         main_display.mount(status_widget)
+
+    def _handle_confirm_command(self) -> None:
+        """Handle the /confirm command to toggle confirmation mode."""
+        if not self.conversation_runner:
+            return
+
+        # Toggle confirmation mode
+        self.conversation_runner.toggle_confirmation_mode()
+
+        # Show status message
+        main_display = self.query_one("#main_display", VerticalScroll)
+        mode_status = (
+            "enabled"
+            if self.conversation_runner.is_confirmation_mode_active
+            else "disabled"
+        )
+        status_widget = Static(
+            f"[yellow]Confirmation mode {mode_status}[/yellow]",
+            classes="status-message",
+        )
+        main_display.mount(status_widget)
+
+    def _handle_confirmation_request(self, pending_actions: list) -> UserConfirmation:
+        """Handle confirmation request by showing the side panel.
+
+        Args:
+            pending_actions: List of pending actions that need confirmation
+
+        Returns:
+            UserConfirmation decision from the user
+        """
+        # This will be called from a background thread, so we need to use
+        # call_from_thread to interact with the UI safely
+        from concurrent.futures import Future
+
+        # Create a future to wait for the user's decision
+        decision_future: Future[UserConfirmation] = Future()
+
+        def show_confirmation_panel():
+            """Show the confirmation panel in the UI thread."""
+            try:
+                # Remove any existing confirmation panel
+                if self.confirmation_panel:
+                    self.confirmation_panel.remove()
+                    self.confirmation_panel = None
+
+                # Create callback that will resolve the future
+                def on_confirmation_decision(decision: UserConfirmation):
+                    # Remove the panel
+                    if self.confirmation_panel:
+                        self.confirmation_panel.remove()
+                        self.confirmation_panel = None
+                    # Resolve the future with the decision
+                    if not decision_future.done():
+                        decision_future.set_result(decision)
+
+                # Create and mount the confirmation panel
+                content_area = self.query_one("#content_area", Horizontal)
+                self.confirmation_panel = ConfirmationSidePanel(
+                    pending_actions, on_confirmation_decision
+                )
+                content_area.mount(self.confirmation_panel)
+
+            except Exception:
+                # If there's an error, default to DEFER
+                if not decision_future.done():
+                    decision_future.set_result(UserConfirmation.DEFER)
+
+        # Schedule the UI update on the main thread
+        self.call_from_thread(show_confirmation_panel)
+
+        # Wait for the user's decision (this will block the background thread)
+        try:
+            return decision_future.result(timeout=300)  # 5 minute timeout
+        except Exception:
+            # If timeout or error, default to DEFER
+            return UserConfirmation.DEFER
 
     def _handle_exit(self) -> None:
         """Handle exit command with optional confirmation."""
