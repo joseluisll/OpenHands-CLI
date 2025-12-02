@@ -16,13 +16,13 @@ from typing import ClassVar
 from textual.app import App, ComposeResult
 from textual.containers import Container, Horizontal, VerticalScroll
 from textual.timer import Timer
-from textual.widgets import Footer, Input, Static
+from textual.widgets import Footer, Input, Static, TextArea
 
 from openhands_cli.locations import WORK_DIR
 from openhands_cli.refactor.autocomplete import EnhancedAutoComplete
 from openhands_cli.refactor.commands import COMMANDS, is_valid_command, show_help
-from openhands_cli.refactor.conversation_runner import ConversationRunner
 from openhands_cli.refactor.confirmation_panel import ConfirmationSidePanel
+from openhands_cli.refactor.conversation_runner import ConversationRunner
 from openhands_cli.refactor.exit_modal import ExitConfirmationModal
 from openhands_cli.refactor.non_clickable_collapsible import NonClickableCollapsible
 from openhands_cli.refactor.richlog_visualizer import TextualVisualizer
@@ -39,6 +39,8 @@ class OpenHandsApp(App):
         ("ctrl+q", "request_quit", "Quit the application"),
         ("f2", "expand_all", "Expand the cells"),
         ("escape", "pause_conversation", "Pause the conversation"),
+        ("ctrl+m", "toggle_input_mode", "Toggle single/multi-line input"),
+        ("ctrl+j", "submit_textarea", "Submit multi-line input"),
     ]
 
     def __init__(self, exit_confirmation: bool = True, **kwargs):
@@ -62,6 +64,10 @@ class OpenHandsApp(App):
 
         # Confirmation panel tracking
         self.confirmation_panel: ConfirmationSidePanel | None = None
+
+        # Input mode tracking
+        self.is_multiline_mode = False
+        self.stored_content = ""
 
         # Register the custom theme
         self.register_theme(OPENHANDS_THEME)
@@ -122,6 +128,20 @@ class OpenHandsApp(App):
     }
 
     #user_input:focus {
+        border: solid $primary;
+        background: $background;
+    }
+
+    #user_textarea {
+        width: 100%;
+        height: 6;
+        background: $background;
+        color: $foreground;
+        border: solid $secondary;
+        display: none;
+    }
+
+    #user_textarea:focus {
         border: solid $primary;
         background: $background;
     }
@@ -231,6 +251,14 @@ class OpenHandsApp(App):
             )
             yield text_input
 
+            # TextArea for multi-line input (initially hidden)
+            text_area = TextArea(
+                id="user_textarea",
+                soft_wrap=True,
+                show_line_numbers=False,
+            )
+            yield text_area
+
             # Add enhanced autocomplete for the input (commands and file paths)
             yield EnhancedAutoComplete(text_input, command_candidates=COMMANDS)
 
@@ -302,6 +330,12 @@ class OpenHandsApp(App):
         status_widget = self.query_one("#status_line", Static)
         work_dir = self.get_work_dir_display()
 
+        # Add input mode indicator
+        if self.is_multiline_mode:
+            mode_indicator = " [Multi-line: Ctrl+J to submit, Ctrl+M to toggle]"
+        else:
+            mode_indicator = " [Ctrl+M for multi-line]"
+
         # Only show controls and timer when conversation is running
         if (
             self.conversation_runner
@@ -311,10 +345,11 @@ class OpenHandsApp(App):
             elapsed = int(time.time() - self.conversation_start_time)
             status_text = (
                 f"{work_dir} ✦ (esc to cancel • {elapsed}s , F2 to show details)"
+                f"{mode_indicator}"
             )
         else:
             # Just show work directory when not running
-            status_text = work_dir
+            status_text = f"{work_dir}{mode_indicator}"
 
         status_widget.update(status_text)
 
@@ -558,6 +593,73 @@ class OpenHandsApp(App):
             self.push_screen(ExitConfirmationModal())
         else:
             self.exit()
+
+    def action_toggle_input_mode(self) -> None:
+        """Action to handle Ctrl+M key binding - toggle between Input and TextArea."""
+        self._toggle_input_mode()
+
+    def action_submit_textarea(self) -> None:
+        """Action to handle Ctrl+J key binding - submit TextArea content."""
+        if self.is_multiline_mode:
+            self._submit_textarea_content()
+
+    def _toggle_input_mode(self) -> None:
+        """Toggle between single-line Input and multi-line TextArea."""
+        input_widget = self.query_one("#user_input", Input)
+        textarea_widget = self.query_one("#user_textarea", TextArea)
+
+        if self.is_multiline_mode:
+            # Switch from TextArea to Input
+            # Replace actual newlines with literal "\n" for single-line display
+            self.stored_content = textarea_widget.text.replace("\n", "\\n")
+            textarea_widget.display = False
+            input_widget.display = True
+            input_widget.value = self.stored_content
+            input_widget.focus()
+            self.is_multiline_mode = False
+        else:
+            # Switch from Input to TextArea
+            # Replace literal "\n" with actual newlines for multi-line display
+            self.stored_content = input_widget.value.replace("\\n", "\n")
+            input_widget.display = False
+            textarea_widget.display = True
+            textarea_widget.text = self.stored_content
+            textarea_widget.focus()
+            self.is_multiline_mode = True
+        
+        # Update status line to reflect the new mode
+        self.update_status_line()
+
+    def _submit_textarea_content(self) -> None:
+        """Submit the content from the TextArea."""
+        textarea_widget = self.query_one("#user_textarea", TextArea)
+        content = textarea_widget.text.strip()
+        
+        if content:
+            # Clear the textarea and switch back to input mode
+            textarea_widget.text = ""
+            self._toggle_input_mode()
+            
+            # Process the content using existing message handling logic
+            # Note: content here contains actual newlines, which is what we want
+            # for processing multi-line input
+            self.run_worker(
+                self._handle_textarea_submission(content), name="handle_textarea"
+            )
+
+    async def _handle_textarea_submission(self, content: str) -> None:
+        """Handle textarea submission using existing message processing logic."""
+        # Add the user message to the main display
+        main_display = self.query_one("#main_display", VerticalScroll)
+        user_message_widget = Static(f"> {content}", classes="user-message")
+        main_display.mount(user_message_widget)
+
+        # Handle commands - only exact matches
+        if is_valid_command(content):
+            self._handle_command(content)
+        else:
+            # Handle regular messages with conversation runner
+            await self._handle_user_message(content)
 
 
 def main():
