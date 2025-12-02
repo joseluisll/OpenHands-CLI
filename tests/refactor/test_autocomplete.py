@@ -192,7 +192,7 @@ class TestCommandsAndAutocomplete:
         error_text = str(error_widget.content)
         assert "Unknown command: /unknown" in error_text
 
-    def test_on_input_submitted_handles_commands(self):
+    async def test_on_input_submitted_handles_commands(self):
         """Test that commands are routed to command handler."""
         app = OpenHandsApp()
 
@@ -207,7 +207,7 @@ class TestCommandsAndAutocomplete:
         mock_event.input.value = "/help"
 
         # Call the method
-        app.on_input_submitted(mock_event)
+        await app.on_input_submitted(mock_event)
 
         # Check that command handler was called
         app._handle_command.assert_called_once_with("/help")
@@ -215,7 +215,7 @@ class TestCommandsAndAutocomplete:
         # Input should be cleared
         assert mock_event.input.value == ""
 
-    def test_on_input_submitted_handles_regular_messages(self):
+    async def test_on_input_submitted_handles_regular_messages(self):
         """Test that non-command messages are handled appropriately."""
         app = OpenHandsApp()
 
@@ -234,7 +234,7 @@ class TestCommandsAndAutocomplete:
         mock_event.input.value = "hello world"
 
         # Call the method
-        app.on_input_submitted(mock_event)
+        await app.on_input_submitted(mock_event)
 
         # Check that user message, processing message, and placeholder response
         # were mounted
@@ -278,7 +278,7 @@ class TestCommandsAndAutocomplete:
         assert "Tips:" in help_text
         assert "Type / and press Tab" in help_text
 
-    def test_exact_command_matching_valid_commands(self):
+    async def test_exact_command_matching_valid_commands(self):
         """Test that exact command matches are treated as commands."""
         app = OpenHandsApp()
 
@@ -295,7 +295,7 @@ class TestCommandsAndAutocomplete:
             mock_event.value = command
             mock_event.input.value = command
 
-            app.on_input_submitted(mock_event)
+            await app.on_input_submitted(mock_event)
 
             # Should call _handle_command for exact matches
             app._handle_command.assert_called_with(command)
@@ -303,7 +303,7 @@ class TestCommandsAndAutocomplete:
             # Reset mock for next iteration
             app._handle_command.reset_mock()
 
-    def test_exact_command_matching_invalid_commands(self):
+    async def test_exact_command_matching_invalid_commands(self):
         """Test that non-exact matches are treated as regular messages."""
         app = OpenHandsApp()
 
@@ -332,7 +332,7 @@ class TestCommandsAndAutocomplete:
             mock_main_display.reset_mock()
             app._handle_command.reset_mock()
 
-            app.on_input_submitted(mock_event)
+            await app.on_input_submitted(mock_event)
 
             # Should NOT call _handle_command for non-exact matches
             app._handle_command.assert_not_called()

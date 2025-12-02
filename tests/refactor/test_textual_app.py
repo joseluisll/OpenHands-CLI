@@ -83,7 +83,7 @@ class TestOpenHandsApp:
             user_input = pilot.app.query_one("#user_input", Input)
             assert user_input is not None
 
-    def test_on_input_submitted_handles_empty_input(self):
+    async def test_on_input_submitted_handles_empty_input(self):
         """Test that empty input is ignored."""
         app = OpenHandsApp()
 
@@ -97,7 +97,7 @@ class TestOpenHandsApp:
         mock_event.input.value = ""
 
         # Call the method
-        app.on_input_submitted(mock_event)
+        await app.on_input_submitted(mock_event)
 
         # mount should not be called for empty input
         mock_main_display.mount.assert_not_called()
@@ -105,7 +105,7 @@ class TestOpenHandsApp:
         # Input value should not be cleared
         assert mock_event.input.value == ""
 
-    def test_on_input_submitted_handles_whitespace_only_input(self):
+    async def test_on_input_submitted_handles_whitespace_only_input(self):
         """Test that whitespace-only input is ignored."""
         app = OpenHandsApp()
 
@@ -119,7 +119,7 @@ class TestOpenHandsApp:
         mock_event.input.value = "   \t\n  "
 
         # Call the method
-        app.on_input_submitted(mock_event)
+        await app.on_input_submitted(mock_event)
 
         # mount should not be called for whitespace-only input
         mock_main_display.mount.assert_not_called()
@@ -153,7 +153,7 @@ class TestOpenHandsApp:
 
         # Mock the run_worker method to raise RuntimeError (simulating test environment)
         app.run_worker = mock.MagicMock(side_effect=RuntimeError("Test environment"))
-        
+
         # Mock call_later to avoid timer issues
         app.call_later = mock.MagicMock()
 
@@ -171,7 +171,7 @@ class TestOpenHandsApp:
 
         # scroll_end should be called twice (once after each mount)
         assert mock_main_display.scroll_end.call_count == 2
-        
+
         # Verify scroll_end is called with animate=False
         for call in mock_main_display.scroll_end.call_args_list:
             assert call[1]["animate"] is False
@@ -191,7 +191,7 @@ class TestOpenHandsApp:
         # Input value should be cleared
         assert mock_event.input.value == ""
 
-    def test_on_input_submitted_message_format(self):
+    async def test_on_input_submitted_message_format(self):
         """Test that input messages are formatted correctly."""
         app = OpenHandsApp()
 
@@ -210,7 +210,7 @@ class TestOpenHandsApp:
         mock_event.input.value = "test message"
 
         # Call the method
-        app.on_input_submitted(mock_event)
+        await app.on_input_submitted(mock_event)
 
         # Check the exact format of the first message (user input)
         first_call_widget = mock_main_display.mount.call_args_list[0][0][0]
@@ -670,17 +670,17 @@ class TestMultiLineInputFunctionality:
             "instructions": ["Test instruction"],
             "update_notice": None,
         }
-        
+
         app = OpenHandsApp()
         async with app.run_test() as pilot:
             # Check that TextArea widget exists
             textarea = pilot.app.query_one("#user_textarea", TextArea)
             assert isinstance(textarea, TextArea)
             assert textarea.id == "user_textarea"
-            
+
             # Check that it's initially hidden
             assert textarea.display is False
-            
+
             # Check that Input widget is visible
             input_widget = pilot.app.query_one("#user_input", Input)
             assert input_widget.display is True
@@ -688,17 +688,19 @@ class TestMultiLineInputFunctionality:
     def test_ctrl_m_keybinding_exists(self):
         """Test that Ctrl+M keybinding is properly configured."""
         app = OpenHandsApp()
-        
+
         # Check that ctrl+m binding exists in BINDINGS
         ctrl_m_binding = (
-            "ctrl+m", "toggle_input_mode", "Toggle single/multi-line input"
+            "ctrl+m",
+            "toggle_input_mode",
+            "Toggle single/multi-line input",
         )
         assert ctrl_m_binding in app.BINDINGS
 
     def test_ctrl_j_keybinding_exists(self):
         """Test that Ctrl+J keybinding is properly configured."""
         app = OpenHandsApp()
-        
+
         # Check that ctrl+j binding exists in BINDINGS
         ctrl_j_binding = ("ctrl+j", "submit_textarea", "Submit multi-line input")
         assert ctrl_j_binding in app.BINDINGS
@@ -711,8 +713,8 @@ class TestMultiLineInputFunctionality:
             ("line1\nline2\nline3", "line1\\nline2\\nline3"),
             ("", ""),
             (
-                "text with\nmultiple\nnewlines\nhere", 
-                "text with\\nmultiple\\nnewlines\\nhere"
+                "text with\nmultiple\nnewlines\nhere",
+                "text with\\nmultiple\\nnewlines\\nhere",
             ),
             ("line with\ttab", "line with\ttab"),  # tabs should be preserved
             ("line with spaces   ", "line with spaces   "),  # spaces preserved
@@ -723,31 +725,31 @@ class TestMultiLineInputFunctionality:
     ):
         """Test newline conversion when switching from multi-line to single-line."""
         app = OpenHandsApp()
-        
+
         # Mock the widgets
         mock_input = mock.MagicMock(spec=Input)
         mock_textarea = mock.MagicMock(spec=TextArea)
         mock_textarea.text = input_content
-        
+
         # Mock query_one to return appropriate widgets
-        def mock_query_one(selector, widget_type):
+        def mock_query_one(selector, widget_type=None):
             if selector == "#user_input":
                 return mock_input
             elif selector == "#user_textarea":
                 return mock_textarea
             elif selector == "#status_line":
                 return mock.MagicMock(spec=Static)
-        
-        app.query_one = mock_query_one
-        app.is_multiline_mode = True  # Start in multi-line mode
-        
-        # Call toggle to switch to single-line mode
-        app._toggle_input_mode()
-        
-        # Verify the conversion
-        assert mock_input.value == expected_single_line
-        assert app.stored_content == expected_single_line
-        assert app.is_multiline_mode is False
+
+        with mock.patch.object(app, "query_one", side_effect=mock_query_one):
+            app.is_multiline_mode = True  # Start in multi-line mode
+
+            # Call toggle to switch to single-line mode
+            app._toggle_input_mode()
+
+            # Verify the conversion
+            assert mock_input.value == expected_single_line
+            assert app.stored_content == expected_single_line
+            assert app.is_multiline_mode is False
 
     @pytest.mark.parametrize(
         "single_line_content,expected_multiline",
@@ -757,8 +759,8 @@ class TestMultiLineInputFunctionality:
             ("line1\\nline2\\nline3", "line1\nline2\nline3"),
             ("", ""),
             (
-                "text with\\nmultiple\\nnewlines\\nhere", 
-                "text with\nmultiple\nnewlines\nhere"
+                "text with\\nmultiple\\nnewlines\\nhere",
+                "text with\nmultiple\nnewlines\nhere",
             ),
             ("line with\ttab", "line with\ttab"),  # tabs should be preserved
             ("line with spaces   ", "line with spaces   "),  # spaces preserved
@@ -769,188 +771,188 @@ class TestMultiLineInputFunctionality:
     ):
         """Test newline conversion when switching from single-line to multi-line."""
         app = OpenHandsApp()
-        
+
         # Mock the widgets
         mock_input = mock.MagicMock(spec=Input)
         mock_input.value = single_line_content
         mock_textarea = mock.MagicMock(spec=TextArea)
-        
+
         # Mock query_one to return appropriate widgets
-        def mock_query_one(selector, widget_type):
+        def mock_query_one(selector, widget_type=None):
             if selector == "#user_input":
                 return mock_input
             elif selector == "#user_textarea":
                 return mock_textarea
             elif selector == "#status_line":
                 return mock.MagicMock(spec=Static)
-        
-        app.query_one = mock_query_one
-        app.is_multiline_mode = False  # Start in single-line mode
-        
-        # Call toggle to switch to multi-line mode
-        app._toggle_input_mode()
-        
-        # Verify the conversion
-        assert mock_textarea.text == expected_multiline
-        assert app.stored_content == expected_multiline
-        assert app.is_multiline_mode is True
+
+        with mock.patch.object(app, "query_one", side_effect=mock_query_one):
+            app.is_multiline_mode = False  # Start in single-line mode
+
+            # Call toggle to switch to multi-line mode
+            app._toggle_input_mode()
+
+            # Verify the conversion
+            assert mock_textarea.text == expected_multiline
+            assert app.stored_content == expected_multiline
+            assert app.is_multiline_mode is True
 
     def test_round_trip_conversion_preserves_content(self):
         """Test that converting back and forth preserves original content."""
         app = OpenHandsApp()
-        
+
         # Original multi-line content
         original_content = "This is line 1\nThis is line 2\nThis is line 3"
-        
+
         # Mock the widgets
         mock_input = mock.MagicMock(spec=Input)
         mock_textarea = mock.MagicMock(spec=TextArea)
         mock_textarea.text = original_content
-        
+
         # Mock query_one to return appropriate widgets
-        def mock_query_one(selector, widget_type):
+        def mock_query_one(selector, widget_type=None):
             if selector == "#user_input":
                 return mock_input
             elif selector == "#user_textarea":
                 return mock_textarea
             elif selector == "#status_line":
                 return mock.MagicMock(spec=Static)
-        
-        app.query_one = mock_query_one
-        app.is_multiline_mode = True  # Start in multi-line mode
-        
-        # Toggle to single-line mode
-        app._toggle_input_mode()
-        single_line_result = mock_input.value
-        
-        # Update mock to reflect the new state
-        mock_input.value = single_line_result
-        app.is_multiline_mode = False
-        
-        # Toggle back to multi-line mode
-        app._toggle_input_mode()
-        
-        # Verify we get back the original content
-        assert mock_textarea.text == original_content
+
+        with mock.patch.object(app, "query_one", side_effect=mock_query_one):
+            app.is_multiline_mode = True  # Start in multi-line mode
+
+            # Toggle to single-line mode
+            app._toggle_input_mode()
+            single_line_result = mock_input.value
+
+            # Update mock to reflect the new state
+            mock_input.value = single_line_result
+            app.is_multiline_mode = False
+
+            # Toggle back to multi-line mode
+            app._toggle_input_mode()
+
+            # Verify we get back the original content
+            assert mock_textarea.text == original_content
 
     def test_toggle_updates_widget_visibility(self):
         """Test that toggling updates widget visibility correctly."""
         app = OpenHandsApp()
-        
+
         # Mock the widgets
         mock_input = mock.MagicMock(spec=Input)
         mock_textarea = mock.MagicMock(spec=TextArea)
         mock_input.value = "test content"
-        
+
         # Mock query_one to return appropriate widgets
-        def mock_query_one(selector, widget_type):
+        def mock_query_one(selector, widget_type=None):
             if selector == "#user_input":
                 return mock_input
             elif selector == "#user_textarea":
                 return mock_textarea
             elif selector == "#status_line":
                 return mock.MagicMock(spec=Static)
-        
-        app.query_one = mock_query_one
-        app.is_multiline_mode = False  # Start in single-line mode
-        
-        # Toggle to multi-line mode
-        app._toggle_input_mode()
-        
-        # Verify visibility changes
-        assert mock_input.display is False
-        assert mock_textarea.display is True
-        assert mock_textarea.focus.called
-        
-        # Toggle back to single-line mode
-        app.is_multiline_mode = True
-        mock_textarea.text = "test content"
-        app._toggle_input_mode()
-        
-        # Verify visibility changes back
-        assert mock_input.display is True
-        assert mock_textarea.display is False
-        assert mock_input.focus.called
+
+        with mock.patch.object(app, "query_one", side_effect=mock_query_one):
+            app.is_multiline_mode = False  # Start in single-line mode
+
+            # Toggle to multi-line mode
+            app._toggle_input_mode()
+
+            # Verify visibility changes
+            assert mock_input.display is False
+            assert mock_textarea.display is True
+            assert mock_textarea.focus.called
+
+            # Toggle back to single-line mode
+            app.is_multiline_mode = True
+            mock_textarea.text = "test content"
+            app._toggle_input_mode()
+
+            # Verify visibility changes back
+            assert mock_input.display is True
+            assert mock_textarea.display is False
+            assert mock_input.focus.called
 
     def test_submit_textarea_content_switches_back_to_single_line(self):
         """Test that submitting TextArea content switches back to single-line mode."""
         app = OpenHandsApp()
-        
+
         # Mock the widgets
         mock_input = mock.MagicMock(spec=Input)
         mock_textarea = mock.MagicMock(spec=TextArea)
         mock_textarea.text = "multi-line\ncontent\nhere"
-        
+
         # Mock query_one to return appropriate widgets
-        def mock_query_one(selector, widget_type):
+        def mock_query_one(selector, widget_type=None):
             if selector == "#user_input":
                 return mock_input
             elif selector == "#user_textarea":
                 return mock_textarea
             elif selector == "#status_line":
                 return mock.MagicMock(spec=Static)
-        
-        app.query_one = mock_query_one
-        app.is_multiline_mode = True  # Start in multi-line mode
-        
-        # Mock run_worker to avoid actual async processing
-        app.run_worker = mock.MagicMock()
-        
-        # Submit textarea content
-        app._submit_textarea_content()
-        
-        # Verify that we switched back to single-line mode
-        assert app.is_multiline_mode is False
-        assert mock_textarea.text == ""  # TextArea should be cleared
-        assert mock_input.display is True
-        assert mock_textarea.display is False
-        
-        # Verify that run_worker was called to process the content
-        assert app.run_worker.called
+
+        with mock.patch.object(app, "query_one", side_effect=mock_query_one):
+            app.is_multiline_mode = True  # Start in multi-line mode
+
+            # Mock run_worker to avoid actual async processing
+            app.run_worker = mock.MagicMock()
+
+            # Submit textarea content
+            app._submit_textarea_content()
+
+            # Verify that we switched back to single-line mode
+            assert app.is_multiline_mode is False
+            assert mock_textarea.text == ""  # TextArea should be cleared
+            assert mock_input.display is True
+            assert mock_textarea.display is False
+
+            # Verify that run_worker was called to process the content
+            assert app.run_worker.called
 
     def test_submit_textarea_empty_content_does_nothing(self):
         """Test that submitting empty TextArea content does nothing."""
         app = OpenHandsApp()
-        
+
         # Mock the widgets with empty content
         mock_input = mock.MagicMock(spec=Input)
         mock_textarea = mock.MagicMock(spec=TextArea)
         mock_textarea.text = "   \n\t  \n  "  # Only whitespace
-        
+
         # Mock query_one to return appropriate widgets
-        def mock_query_one(selector, widget_type):
+        def mock_query_one(selector, widget_type=None):
             if selector == "#user_input":
                 return mock_input
             elif selector == "#user_textarea":
                 return mock_textarea
             elif selector == "#status_line":
                 return mock.MagicMock(spec=Static)
-        
-        app.query_one = mock_query_one
-        app.is_multiline_mode = True  # Start in multi-line mode
-        
-        # Mock run_worker to verify it's not called
-        app.run_worker = mock.MagicMock()
-        
-        # Submit textarea content
-        app._submit_textarea_content()
-        
-        # Verify that nothing happened (still in multi-line mode)
-        assert app.is_multiline_mode is True
-        app.run_worker.assert_not_called()
+
+        with mock.patch.object(app, "query_one", side_effect=mock_query_one):
+            app.is_multiline_mode = True  # Start in multi-line mode
+
+            # Mock run_worker to verify it's not called
+            app.run_worker = mock.MagicMock()
+
+            # Submit textarea content
+            app._submit_textarea_content()
+
+            # Verify that nothing happened (still in multi-line mode)
+            assert app.is_multiline_mode is True
+            app.run_worker.assert_not_called()
 
     def test_action_submit_textarea_only_works_in_multiline_mode(self):
         """Test that action_submit_textarea only works when in multi-line mode."""
         app = OpenHandsApp()
-        
+
         # Mock _submit_textarea_content method
         app._submit_textarea_content = mock.MagicMock()
-        
+
         # Test in single-line mode
         app.is_multiline_mode = False
         app.action_submit_textarea()
         app._submit_textarea_content.assert_not_called()
-        
+
         # Test in multi-line mode
         app.is_multiline_mode = True
         app.action_submit_textarea()
@@ -968,10 +970,10 @@ class TestMultiLineInputFunctionality:
             "instructions": ["Test instruction"],
             "update_notice": None,
         }
-        
+
         app = OpenHandsApp()
         css = app.CSS
-        
+
         # Check that TextArea styling is included
         assert "#user_textarea" in css
         assert "display: none" in css  # Should be hidden initially

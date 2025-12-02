@@ -7,7 +7,6 @@ from collections.abc import Callable
 from openhands.sdk import BaseConversation, Message, TextContent
 from openhands.sdk.conversation.state import ConversationExecutionStatus
 from openhands.sdk.security.confirmation_policy import (
-    AlwaysConfirm,
     ConfirmationPolicyBase,
     ConfirmRisky,
     NeverConfirm,
@@ -34,9 +33,9 @@ class ConversationRunner:
         self._confirmation_callback: Callable | None = None
 
     def initialize_conversation(
-        self, 
+        self,
         include_security_analyzer: bool = False,
-        conversation_id: uuid.UUID | None = None
+        conversation_id: uuid.UUID | None = None,
     ) -> None:
         """Initialize a new conversation.
 

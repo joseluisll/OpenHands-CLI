@@ -63,7 +63,7 @@ class MCPSidePanel(Vertical):
 
     def __init__(self, agent: Agent | None = None, **kwargs):
         """Initialize the MCP side panel.
-        
+
         Args:
             agent: The OpenHands agent instance to get MCP config from
         """
@@ -82,74 +82,96 @@ class MCPSidePanel(Vertical):
     def refresh_content(self):
         """Refresh the MCP server content."""
         content_widget = self.query_one("#mcp-content", Static)
-        
+
         # Check if agent failed to load
         if self.agent is None:
             content_parts = [
-                f"[{OPENHANDS_THEME.error}]Failed to load MCP configurations.[/{OPENHANDS_THEME.error}]",
-                f"[{OPENHANDS_THEME.error}]Agent settings file is corrupted![/{OPENHANDS_THEME.error}]"
+                f"[{OPENHANDS_THEME.error}]Failed to load MCP configurations."
+                f"[/{OPENHANDS_THEME.error}]",
+                f"[{OPENHANDS_THEME.error}]Agent settings file is corrupted!"
+                f"[/{OPENHANDS_THEME.error}]",
             ]
             content_widget.update("\n".join(content_parts))
             return
-        
+
         # Get MCP configuration status
         status = self._check_mcp_config_status()
         current_servers = self.agent.mcp_config.get("mcpServers", {})
-        
+
         # Build content string
         content_parts = []
-        
+
         # Show current agent servers
         content_parts.append("[bold]Current Agent Servers:[/bold]")
         if current_servers:
             for name, cfg in current_servers.items():
-                content_parts.append(f"[{OPENHANDS_THEME.primary}]• {name}[/{OPENHANDS_THEME.primary}]")
+                content_parts.append(
+                    f"[{OPENHANDS_THEME.primary}]• {name}[/{OPENHANDS_THEME.primary}]"
+                )
                 server_details = self._format_server_details(cfg)
                 for detail in server_details:
                     content_parts.append(f"  {detail}")
         else:
-            content_parts.append(f"[{OPENHANDS_THEME.warning}]  None configured[/{OPENHANDS_THEME.warning}]")
-        
+            content_parts.append(
+                f"[{OPENHANDS_THEME.warning}]  None configured"
+                f"[/{OPENHANDS_THEME.warning}]"
+            )
+
         content_parts.append("")
-        
+
         # Show file status
         if not status["exists"]:
-            content_parts.append(f"[{OPENHANDS_THEME.warning}]Config file not found[/{OPENHANDS_THEME.warning}]")
+            content_parts.append(
+                f"[{OPENHANDS_THEME.warning}]Config file not found"
+                f"[/{OPENHANDS_THEME.warning}]"
+            )
             content_parts.append(f"Create: ~/.openhands/{MCP_CONFIG_FILE}")
         elif not status["valid"]:
-            content_parts.append(f"[{OPENHANDS_THEME.error}]Invalid config file[/{OPENHANDS_THEME.error}]")
+            content_parts.append(
+                f"[{OPENHANDS_THEME.error}]Invalid config file"
+                f"[/{OPENHANDS_THEME.error}]"
+            )
         else:
-            content_parts.append(f"[{OPENHANDS_THEME.accent}]Config: {len(status['servers'])} server(s)[/{OPENHANDS_THEME.accent}]")
-            
+            content_parts.append(
+                f"[{OPENHANDS_THEME.accent}]Config: {len(status['servers'])} "
+                f"server(s)[/{OPENHANDS_THEME.accent}]"
+            )
+
             # Show incoming servers if different from current
             incoming_servers = status.get("servers", {})
             if incoming_servers:
                 content_parts.append("")
                 content_parts.append("[bold]Incoming on Restart:[/bold]")
-                
+
                 # Find new and changed servers
                 current_names = set(current_servers.keys())
                 incoming_names = set(incoming_servers.keys())
                 new_servers = sorted(incoming_names - current_names)
-                
+
                 changed_servers = []
                 for name in sorted(incoming_names & current_names):
-                    if not self._check_server_specs_are_equal(current_servers[name], incoming_servers[name]):
+                    if not self._check_server_specs_are_equal(
+                        current_servers[name], incoming_servers[name]
+                    ):
                         changed_servers.append(name)
-                
+
                 if new_servers:
-                    content_parts.append(f"[{OPENHANDS_THEME.accent}]New:[/{OPENHANDS_THEME.accent}]")
+                    content_parts.append(
+                        f"[{OPENHANDS_THEME.accent}]New:[/{OPENHANDS_THEME.accent}]"
+                    )
                     for name in new_servers:
                         content_parts.append(f"  • {name}")
-                
+
                 if changed_servers:
-                    content_parts.append(f"[{OPENHANDS_THEME.warning}]Updated:[/{OPENHANDS_THEME.warning}]")
+                    content_parts.append(
+                        f"[{OPENHANDS_THEME.warning}]Updated:[/{OPENHANDS_THEME.warning}]"
+                    )
                     for name in changed_servers:
                         content_parts.append(f"  • {name}")
-                
+
                 if not new_servers and not changed_servers:
                     content_parts.append("  All servers match current")
-        
+
         # Join all content and update the widget
         content_text = "\n".join(content_parts)
         content_widget.update(content_text)
@@ -157,7 +179,7 @@ class MCPSidePanel(Vertical):
     def _format_server_details(self, server_spec: dict[str, Any]) -> list[str]:
         """Format server specification details for display."""
         details = []
-        
+
         if isinstance(server_spec, dict):
             if "command" in server_spec:
                 cmd = server_spec.get("command", "")
@@ -173,17 +195,20 @@ class MCPSidePanel(Vertical):
                 if url:
                     details.append(f"URL: {url}")
                 details.append(f"Auth: {auth}")
-        
+
         return details
 
-    def _check_server_specs_are_equal(self, first_server_spec, second_server_spec) -> bool:
+    def _check_server_specs_are_equal(
+        self, first_server_spec, second_server_spec
+    ) -> bool:
         """Check if two server specifications are equal."""
         first_stringified_server_spec = json.dumps(first_server_spec, sort_keys=True)
         second_stringified_server_spec = json.dumps(second_server_spec, sort_keys=True)
         return first_stringified_server_spec == second_stringified_server_spec
 
     def _check_mcp_config_status(self) -> dict:
-        """Check the status of the MCP configuration file and return information about it."""
+        """Check the status of the MCP configuration file and return information
+        about it."""
         config_path = Path(PERSISTENCE_DIR) / MCP_CONFIG_FILE
 
         if not config_path.exists():

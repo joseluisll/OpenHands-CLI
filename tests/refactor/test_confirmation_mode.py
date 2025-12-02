@@ -2,7 +2,7 @@
 
 from unittest.mock import MagicMock, patch
 
-from openhands.sdk.security.confirmation_policy import ConfirmRisky, NeverConfirm
+from openhands.sdk.security.confirmation_policy import ConfirmRisky
 from openhands_cli.refactor.confirmation_panel import (
     ConfirmationPanel,
 )
@@ -47,9 +47,9 @@ class TestConversationRunner:
             assert runner.is_confirmation_mode_active is True
             # Check that setup_conversation was called with ConfirmRisky policy
             mock_setup.assert_called_with(
-                runner.conversation_id, 
-                confirmation_policy=ConfirmRisky(), 
-                visualizer=None
+                runner.conversation_id,
+                confirmation_policy=ConfirmRisky(),
+                visualizer=None,
             )
 
             # Toggle to disable
