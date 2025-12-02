@@ -11,6 +11,7 @@ It creates a basic app with:
 import asyncio
 import os
 import time
+import uuid
 from collections.abc import Iterable
 from typing import ClassVar
 
@@ -47,17 +48,26 @@ class OpenHandsApp(App):
         ("ctrl+q", "request_quit", "Quit the application"),
     ]
 
-    def __init__(self, exit_confirmation: bool = True, **kwargs):
+    def __init__(
+        self, 
+        exit_confirmation: bool = True, 
+        resume_conversation_id: uuid.UUID | None = None,
+        **kwargs
+    ):
         """Initialize the app with custom OpenHands theme.
 
         Args:
             exit_confirmation: If True, show confirmation modal before exit.
                              If False, exit immediately.
+            resume_conversation_id: Optional conversation ID to resume.
         """
         super().__init__(**kwargs)
 
         # Store exit confirmation setting
         self.exit_confirmation = exit_confirmation
+        
+        # Store resume conversation ID
+        self.resume_conversation_id = resume_conversation_id
 
         # Initialize conversation runner (updated with write callback in on_mount)
         self.conversation_runner = None
@@ -359,6 +369,12 @@ class OpenHandsApp(App):
         self.conversation_runner.set_confirmation_callback(
             self._handle_confirmation_request
         )
+        
+        # If resuming a conversation, initialize it now
+        if self.resume_conversation_id:
+            self.conversation_runner.initialize_conversation(
+                conversation_id=self.resume_conversation_id
+            )
 
         # Initialize status line
         self.update_status_line()
@@ -779,9 +795,13 @@ class OpenHandsApp(App):
             await self._handle_user_message(content)
 
 
-def main():
-    """Run the textual app."""
-    app = OpenHandsApp()
+def main(resume_conversation_id: uuid.UUID | None = None):
+    """Run the textual app.
+    
+    Args:
+        resume_conversation_id: Optional conversation ID to resume.
+    """
+    app = OpenHandsApp(resume_conversation_id=resume_conversation_id)
     app.run()
 
 

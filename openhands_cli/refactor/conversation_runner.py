@@ -9,6 +9,7 @@ from openhands.sdk.conversation.state import ConversationExecutionStatus
 from openhands.sdk.security.confirmation_policy import (
     AlwaysConfirm,
     ConfirmationPolicyBase,
+    ConfirmRisky,
     NeverConfirm,
 )
 from openhands_cli.refactor.richlog_visualizer import TextualVisualizer
@@ -32,19 +33,33 @@ class ConversationRunner:
         self._confirmation_mode_active = False
         self._confirmation_callback: Callable | None = None
 
-    def initialize_conversation(self, include_security_analyzer: bool = False) -> None:
+    def initialize_conversation(
+        self, 
+        include_security_analyzer: bool = False,
+        conversation_id: uuid.UUID | None = None
+    ) -> None:
         """Initialize a new conversation.
 
         Args:
             include_security_analyzer: Whether to include security analyzer for
                 confirmation mode.
+            conversation_id: Optional conversation ID to resume. If None, creates new.
         """
-        self.conversation_id = uuid.uuid4()
+        if conversation_id:
+            self.conversation_id = conversation_id
+        else:
+            self.conversation_id = uuid.uuid4()
 
-        # Setup conversation with or without security analyzer
+        # Choose confirmation policy based on security analyzer setting
+        if include_security_analyzer:
+            confirmation_policy = ConfirmRisky()
+        else:
+            confirmation_policy = NeverConfirm()
+
+        # Setup conversation with proper parameters
         self.conversation = setup_conversation(
             self.conversation_id,
-            include_security_analyzer=include_security_analyzer,
+            confirmation_policy=confirmation_policy,
             visualizer=self.visualizer,
         )
 
@@ -59,22 +74,25 @@ class ConversationRunner:
         """Toggle confirmation mode on/off."""
         new_confirmation_mode_state = not self._confirmation_mode_active
 
+        # Choose confirmation policy based on new state
+        if new_confirmation_mode_state:
+            confirmation_policy = ConfirmRisky()
+        else:
+            confirmation_policy = NeverConfirm()
+
         # Reinitialize conversation with new confirmation mode state
         if self.conversation_id:
             self.conversation = setup_conversation(
                 self.conversation_id,
-                include_security_analyzer=new_confirmation_mode_state,
+                confirmation_policy=confirmation_policy,
                 visualizer=self.visualizer,
             )
 
         self._confirmation_mode_active = new_confirmation_mode_state
 
-        if new_confirmation_mode_state:
-            # Enable confirmation mode: set AlwaysConfirm policy
-            self.set_confirmation_policy(AlwaysConfirm())
-        else:
-            # Disable confirmation mode: set NeverConfirm policy
-            self.set_confirmation_policy(NeverConfirm())
+        # Update the confirmation policy on the existing conversation
+        if self.conversation:
+            self.conversation.set_confirmation_policy(confirmation_policy)
 
     def set_confirmation_policy(
         self, confirmation_policy: ConfirmationPolicyBase

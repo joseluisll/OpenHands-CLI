@@ -56,7 +56,7 @@ def main() -> None:
                 # Use experimental textual-based UI
                 from openhands_cli.refactor.textual_app import main as textual_main
 
-                textual_main()
+                textual_main(resume_conversation_id=args.resume)
             else:
                 # Default CLI behavior - no subcommand needed
                 # Import agent_chat only when needed
