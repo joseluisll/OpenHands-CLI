@@ -48,6 +48,9 @@ class TestTextualVisualizer(unittest.TestCase):
         # Container mount should be called for unknown events (they get a fallback
         # widget)
         self.mock_container.mount.assert_called_once()
+        
+        # Container scroll_end should be called to auto-scroll to the new widget
+        self.mock_container.scroll_end.assert_called_once_with(animate=False)
 
     def test_container_is_stored(self):
         """Test that the container is properly stored."""
@@ -60,6 +63,23 @@ class TestTextualVisualizer(unittest.TestCase):
         )
 
         self.assertIsInstance(self.visualizer, ConversationVisualizerBase)
+
+    def test_add_widget_to_ui_calls_scroll_end(self):
+        """Test that _add_widget_to_ui calls scroll_end after mounting widget."""
+        from openhands_cli.refactor.non_clickable_collapsible import NonClickableCollapsible
+        from textual.widgets import Static
+        
+        # Create a mock widget
+        mock_widget = mock.MagicMock(spec=NonClickableCollapsible)
+        
+        # Call the method
+        self.visualizer._add_widget_to_ui(mock_widget)
+        
+        # Verify mount was called
+        self.mock_container.mount.assert_called_once_with(mock_widget)
+        
+        # Verify scroll_end was called with animate=False
+        self.mock_container.scroll_end.assert_called_once_with(animate=False)
 
 
 if __name__ == "__main__":

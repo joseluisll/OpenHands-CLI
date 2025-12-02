@@ -99,6 +99,8 @@ class TextualVisualizer(ConversationVisualizerBase):
     def _add_widget_to_ui(self, widget: NonClickableCollapsible) -> None:
         """Add a widget to the UI (must be called from main thread)."""
         self._container.mount(widget)
+        # Automatically scroll to the bottom to show the newly added widget
+        self._container.scroll_end(animate=False)
 
     def _escape_rich_markup(self, text: str) -> str:
         """Escape Rich markup characters in text to prevent markup errors."""

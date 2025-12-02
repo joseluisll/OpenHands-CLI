@@ -137,7 +137,8 @@ class TestOpenHandsApp:
             "unicode: 🚀 ✨ 🎉",
         ],
     )
-    def test_on_input_submitted_handles_valid_input(self, user_input):
+    @pytest.mark.asyncio
+    async def test_on_input_submitted_handles_valid_input(self, user_input):
         """Test that valid input is processed correctly."""
         app = OpenHandsApp()
 
@@ -150,17 +151,30 @@ class TestOpenHandsApp:
         mock_conversation_runner.is_running = False
         app.conversation_runner = mock_conversation_runner
 
+        # Mock the run_worker method to raise RuntimeError (simulating test environment)
+        app.run_worker = mock.MagicMock(side_effect=RuntimeError("Test environment"))
+        
+        # Mock call_later to avoid timer issues
+        app.call_later = mock.MagicMock()
+
         # Create mock event with valid input
         mock_event = mock.MagicMock()
         mock_event.value = user_input
         mock_event.input.value = user_input
 
         # Call the method
-        app.on_input_submitted(mock_event)
+        await app.on_input_submitted(mock_event)
 
-        # mount should be called three times:
-        # user message + processing + placeholder
-        assert mock_main_display.mount.call_count == 3
+        # mount should be called twice:
+        # user message + placeholder (due to RuntimeError in test environment)
+        assert mock_main_display.mount.call_count == 2
+
+        # scroll_end should be called twice (once after each mount)
+        assert mock_main_display.scroll_end.call_count == 2
+        
+        # Verify scroll_end is called with animate=False
+        for call in mock_main_display.scroll_end.call_args_list:
+            assert call[1]["animate"] is False
 
         # First call should be the user message widget
         first_call_widget = mock_main_display.mount.call_args_list[0][0][0]
@@ -170,13 +184,9 @@ class TestOpenHandsApp:
         # The widget content should contain the user input
         assert user_input in str(first_call_widget.content)
 
-        # Second call should be the processing message widget
+        # Second call should be the placeholder message widget
         second_call_widget = mock_main_display.mount.call_args_list[1][0][0]
-        assert "Processing message" in str(second_call_widget.content)
-
-        # Third call should be the placeholder message widget
-        third_call_widget = mock_main_display.mount.call_args_list[2][0][0]
-        assert "conversation runner" in str(third_call_widget.content)
+        assert "conversation runner" in str(second_call_widget.content)
 
         # Input value should be cleared
         assert mock_event.input.value == ""

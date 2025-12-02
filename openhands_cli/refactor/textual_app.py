@@ -393,6 +393,7 @@ class OpenHandsApp(App):
             main_display = self.query_one("#main_display", VerticalScroll)
             user_message_widget = Static(f"> {user_message}", classes="user-message")
             main_display.mount(user_message_widget)
+            main_display.scroll_end(animate=False)
 
             # Handle commands - only exact matches
             if is_valid_command(user_message):
@@ -419,6 +420,7 @@ class OpenHandsApp(App):
                 f"Unknown command: {command}", classes="error-message"
             )
             main_display.mount(error_widget)
+            main_display.scroll_end(animate=False)
 
     async def _handle_user_message(self, user_message: str) -> None:
         """Handle regular user messages with the conversation runner."""
@@ -431,6 +433,7 @@ class OpenHandsApp(App):
                 classes="error-message",
             )
             main_display.mount(error_widget)
+            main_display.scroll_end(animate=False)
             return
 
         # Show that we're processing the message
@@ -455,6 +458,7 @@ class OpenHandsApp(App):
                 classes="status-message",
             )
             main_display.mount(placeholder_widget)
+            main_display.scroll_end(animate=False)
 
     async def _process_message_with_timer(self, user_message: str) -> None:
         """Process message and handle timer lifecycle."""
@@ -493,6 +497,7 @@ class OpenHandsApp(App):
                 classes="status-message",
             )
             main_display.mount(pause_widget)
+            main_display.scroll_end(animate=False)
 
             # Run the pause operation asynchronously to avoid blocking the UI
             asyncio.create_task(self._pause_conversation_async())
@@ -521,6 +526,7 @@ class OpenHandsApp(App):
             classes="status-message",
         )
         main_display.mount(status_widget)
+        main_display.scroll_end(animate=False)
 
     def _handle_confirm_command(self) -> None:
         """Handle the /confirm command to toggle confirmation mode."""
@@ -542,6 +548,7 @@ class OpenHandsApp(App):
             classes="status-message",
         )
         main_display.mount(status_widget)
+        main_display.scroll_end(animate=False)
 
     def _handle_confirmation_request(self, pending_actions: list) -> UserConfirmation:
         """Handle confirmation request by showing the side panel.
@@ -687,6 +694,7 @@ class OpenHandsApp(App):
         main_display = self.query_one("#main_display", VerticalScroll)
         user_message_widget = Static(f"> {content}", classes="user-message")
         main_display.mount(user_message_widget)
+        main_display.scroll_end(animate=False)
 
         # Handle commands - only exact matches
         if is_valid_command(content):
