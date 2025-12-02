@@ -15,17 +15,22 @@ def create_main_parser() -> argparse.ArgumentParser:
         description="OpenHands CLI - Terminal User Interface for OpenHands AI Agent",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
-            By default, OpenHands runs in CLI mode (terminal interface).
+            By default, OpenHands runs in CLI mode (terminal interface)
+            with 'always-ask' confirmation mode, where all agent actions
+            require user confirmation.
+
             Use 'serve' subcommand to launch the GUI server instead.
 
             Examples:
                 openhands                           # Start CLI mode
                 openhands --exp                     # Start experimental textual UI
-                openhands --resume conversation-id  # Resume a conversation in CLI mode
+                openhands --resume conversation-id  # Resume conversation
+                openhands --always-approve          # Auto-approve all actions
+                openhands --llm-approve             # LLM-based approval mode
                 openhands serve                     # Launch GUI server
-                openhands serve --gpu               # Launch GUI server with GPU support
-                openhands acp                       # Start as Agent-Client Protocol
-                                                      server for clients like Zed IDE
+                openhands serve --gpu               # Launch with GPU support
+                openhands acp                       # Agent-Client Protocol
+                                                      server (e.g., Zed IDE)
         """,
     )
 
@@ -58,6 +63,22 @@ def create_main_parser() -> argparse.ArgumentParser:
         "--exp",
         action="store_true",
         help="Use experimental textual-based UI instead of the default CLI interface",
+    )
+
+    # Confirmation mode options (mutually exclusive)
+    confirmation_group = parser.add_mutually_exclusive_group()
+    confirmation_group.add_argument(
+        "--always-approve",
+        action="store_true",
+        help="Auto-approve all actions without asking for confirmation",
+    )
+    confirmation_group.add_argument(
+        "--llm-approve",
+        action="store_true",
+        help=(
+            "Enable LLM-based security analyzer "
+            "(only confirm LLM-predicted high-risk actions)"
+        ),
     )
 
     # Subcommands

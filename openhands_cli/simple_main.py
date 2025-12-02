@@ -11,6 +11,13 @@ import warnings
 from prompt_toolkit import print_formatted_text
 from prompt_toolkit.formatted_text import HTML
 
+from openhands.sdk.security.confirmation_policy import (
+    AlwaysConfirm,
+    ConfirmationPolicyBase,
+    ConfirmRisky,
+    NeverConfirm,
+)
+from openhands.sdk.security.risk import SecurityRisk
 from openhands_cli.argparsers.main_parser import create_main_parser
 from openhands_cli.utils import create_seeded_instructions_from_args
 
@@ -55,11 +62,20 @@ def main() -> None:
                 # Import agent_chat only when needed
                 from openhands_cli.agent_chat import run_cli_entry
 
+                # Determine confirmation mode from args
+                # Default is "always-ask" (handled in setup_conversation)
+                confirmation_policy: ConfirmationPolicyBase = AlwaysConfirm()
+                if args.always_approve:
+                    confirmation_policy = NeverConfirm()
+                elif args.llm_approve:
+                    confirmation_policy = ConfirmRisky(threshold=SecurityRisk.HIGH)
+
                 queued_inputs = create_seeded_instructions_from_args(args)
 
                 # Start agent chat
                 run_cli_entry(
                     resume_conversation_id=args.resume,
+                    confirmation_policy=confirmation_policy,
                     queued_inputs=queued_inputs,
                 )
     except KeyboardInterrupt:

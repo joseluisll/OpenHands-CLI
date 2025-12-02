@@ -16,6 +16,10 @@ from openhands.sdk import (
     TextContent,
 )
 from openhands.sdk.conversation.state import ConversationExecutionStatus
+from openhands.sdk.security.confirmation_policy import (
+    AlwaysConfirm,
+    ConfirmationPolicyBase,
+)
 from openhands_cli.runner import ConversationRunner
 from openhands_cli.setup import (
     MissingAgentSpec,
@@ -61,16 +65,25 @@ def _print_exit_hint(conversation_id: str) -> None:
 
 def run_cli_entry(
     resume_conversation_id: str | None = None,
+    confirmation_policy: ConfirmationPolicyBase | None = None,
     queued_inputs: list[str] | None = None,
 ) -> None:
     """Run the agent chat session using the agent SDK.
 
+    Args:
+        resume_conversation_id: ID of conversation to resume
+        confirmation_policy: Confirmation policy to use.
+            Options: AlwaysConfirm(), NeverConfirm(), ConfirmRisky()
+            Defaults to AlwaysConfirm() if not provided.
+        queued_inputs: Optional list of input strings to queue at the start
 
     Raises:
         AgentSetupError: If agent setup fails
         KeyboardInterrupt: If user interrupts the session
         EOFError: If EOF is encountered
     """
+    if confirmation_policy is None:
+        confirmation_policy = AlwaysConfirm()
 
     # Normalize queued_inputs to a local copy to prevent mutating the caller's list
     pending_inputs = list(queued_inputs) if queued_inputs else []
@@ -97,7 +110,7 @@ def run_cli_entry(
         print_formatted_text(HTML("\n<yellow>Goodbye! 👋</yellow>"))
         return
 
-    display_welcome(conversation_id, bool(resume_conversation_id))
+    display_welcome(conversation_id, confirmation_policy, bool(resume_conversation_id))
 
     # Track session start time for uptime calculation
     session_start_time = datetime.now()
@@ -219,7 +232,9 @@ def run_cli_entry(
                 message = None
 
             if not runner or not conversation:
-                conversation = setup_conversation(conversation_id)
+                conversation = setup_conversation(
+                    conversation_id, confirmation_policy=confirmation_policy
+                )
                 runner = ConversationRunner(conversation)
             runner.process_message(message)
 
