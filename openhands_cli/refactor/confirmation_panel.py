@@ -70,11 +70,11 @@ class ConfirmationPanel(Container):
         elif button_id == "btn_reject":
             self.confirmation_callback(UserConfirmation.REJECT)
         elif button_id == "btn_always":
-            # This would set NeverConfirm policy
-            self.confirmation_callback(UserConfirmation.ACCEPT)
+            # Accept and set NeverConfirm policy
+            self.confirmation_callback(UserConfirmation.ALWAYS_PROCEED)
         elif button_id == "btn_risky":
-            # This would set ConfirmRisky policy
-            self.confirmation_callback(UserConfirmation.ACCEPT)
+            # Accept and set ConfirmRisky policy
+            self.confirmation_callback(UserConfirmation.CONFIRM_RISKY)
 
 
 class ConfirmationSidePanel(Container):

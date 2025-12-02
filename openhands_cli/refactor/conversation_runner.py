@@ -9,6 +9,7 @@ from openhands.sdk.conversation.state import ConversationExecutionStatus
 from openhands.sdk.security.confirmation_policy import (
     AlwaysConfirm,
     ConfirmationPolicyBase,
+    ConfirmRisky,
     NeverConfirm,
 )
 from openhands_cli.refactor.richlog_visualizer import TextualVisualizer
@@ -51,11 +52,8 @@ class ConversationRunner:
         else:
             confirmation_policy = NeverConfirm()
 
-        self._confirmation_mode_active = new_confirmation_mode_state
-
-        # Update the confirmation policy on the existing conversation
-        if self.conversation:
-            self.conversation.set_confirmation_policy(confirmation_policy)
+        # Use the centralized method to change policy and update state
+        self._change_confirmation_policy(confirmation_policy)
 
     def set_confirmation_policy(
         self, confirmation_policy: ConfirmationPolicyBase
@@ -225,9 +223,30 @@ class ConversationRunner:
         elif decision == UserConfirmation.DEFER:
             # Pause the conversation for later resumption
             self.conversation.pause()
+        elif decision == UserConfirmation.ALWAYS_PROCEED:
+            # Accept actions and change policy to NeverConfirm
+            self._change_confirmation_policy(NeverConfirm())
+        elif decision == UserConfirmation.CONFIRM_RISKY:
+            # Accept actions and change policy to ConfirmRisky
+            self._change_confirmation_policy(ConfirmRisky())
 
-        # For ACCEPT, we just continue normally
+        # For ACCEPT and policy-changing decisions, we continue normally
         return decision
+
+    def _change_confirmation_policy(self, new_policy: ConfirmationPolicyBase) -> None:
+        """Change the confirmation policy and update internal state.
+
+        Args:
+            new_policy: The new confirmation policy to set
+        """
+        if self.conversation:
+            self.conversation.set_confirmation_policy(new_policy)
+
+        # Update internal state based on the policy type
+        if isinstance(new_policy, NeverConfirm):
+            self._confirmation_mode_active = False
+        else:
+            self._confirmation_mode_active = True
 
     @property
     def is_running(self) -> bool:

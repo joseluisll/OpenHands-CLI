@@ -51,6 +51,73 @@ class TestConversationRunner:
         # Check that set_confirmation_policy was called with AlwaysConfirm
         mock_conversation.set_confirmation_policy.assert_called_with(AlwaysConfirm())
 
+    def test_policy_change_methods(self):
+        """Test the new policy change functionality."""
+        conversation_id = uuid.uuid4()
+        runner = ConversationRunner(conversation_id)
+
+        # Mock an existing conversation
+        mock_conversation = MagicMock()
+        runner.conversation = mock_conversation
+
+        # Test _change_confirmation_policy with NeverConfirm
+        from openhands.sdk.security.confirmation_policy import (
+            ConfirmRisky,
+            NeverConfirm,
+        )
+
+        runner._change_confirmation_policy(NeverConfirm())
+        mock_conversation.set_confirmation_policy.assert_called_with(NeverConfirm())
+        assert runner.is_confirmation_mode_active is False
+
+        # Test _change_confirmation_policy with ConfirmRisky
+        runner._change_confirmation_policy(ConfirmRisky())
+        mock_conversation.set_confirmation_policy.assert_called_with(ConfirmRisky())
+        assert runner.is_confirmation_mode_active is True
+
+        # Test _change_confirmation_policy with AlwaysConfirm
+        runner._change_confirmation_policy(AlwaysConfirm())
+        mock_conversation.set_confirmation_policy.assert_called_with(AlwaysConfirm())
+        assert runner.is_confirmation_mode_active is True
+
+    def test_handle_confirmation_request_policy_changes(self):
+        """Test that _handle_confirmation_request handles policy changes correctly."""
+        conversation_id = uuid.uuid4()
+        runner = ConversationRunner(conversation_id)
+
+        # Mock an existing conversation
+        mock_conversation = MagicMock()
+        runner.conversation = mock_conversation
+
+        # Mock the confirmation callback to return different decisions
+        def mock_callback(pending_actions):
+            return UserConfirmation.ALWAYS_PROCEED
+
+        runner.set_confirmation_callback(mock_callback)
+
+        # Mock ConversationState.get_unmatched_actions to return some actions
+        with patch(
+            "openhands.sdk.conversation.state.ConversationState.get_unmatched_actions"
+        ) as mock_get_actions:
+            mock_get_actions.return_value = [MagicMock()]  # Some pending actions
+
+            # Test ALWAYS_PROCEED changes policy to NeverConfirm
+            result = runner._handle_confirmation_request()
+            assert result == UserConfirmation.ALWAYS_PROCEED
+            assert runner.is_confirmation_mode_active is False
+
+            # Reset for next test
+            runner._confirmation_mode_active = True
+
+            # Test CONFIRM_RISKY changes policy to ConfirmRisky
+            def mock_callback_risky(pending_actions):
+                return UserConfirmation.CONFIRM_RISKY
+
+            runner.set_confirmation_callback(mock_callback_risky)
+            result = runner._handle_confirmation_request()
+            assert result == UserConfirmation.CONFIRM_RISKY
+            assert runner.is_confirmation_mode_active is True
+
 
 class TestConfirmationPanel:
     """Tests for the ConfirmationPanel widget."""
@@ -89,6 +156,20 @@ class TestConfirmationPanel:
         mock_event.button = mock_reject_button
         panel.on_button_pressed(mock_event)
         mock_callback.assert_called_with(UserConfirmation.REJECT)
+
+        # Test always proceed button
+        mock_always_button = MagicMock()
+        mock_always_button.id = "btn_always"
+        mock_event.button = mock_always_button
+        panel.on_button_pressed(mock_event)
+        mock_callback.assert_called_with(UserConfirmation.ALWAYS_PROCEED)
+
+        # Test confirm risky button
+        mock_risky_button = MagicMock()
+        mock_risky_button.id = "btn_risky"
+        mock_event.button = mock_risky_button
+        panel.on_button_pressed(mock_event)
+        mock_callback.assert_called_with(UserConfirmation.CONFIRM_RISKY)
 
 
 class TestOpenHandsAppConfirmation:
