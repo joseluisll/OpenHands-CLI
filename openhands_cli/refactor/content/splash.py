@@ -7,12 +7,23 @@ from openhands_cli.version_check import check_for_updates
 
 def get_openhands_banner() -> str:
     """Get the OpenHands ASCII art banner."""
-    return r"""     ___                    _   _                 _
-    /  _ \ _ __   ___ _ __ | | | | __ _ _ __   __| |___
-    | | | | '_ \ / _ \ '_ \| |_| |/ _` | '_ \ / _` / __|
-    | |_| | |_) |  __/ | | |  _  | (_| | | | | (_| \__ \
-    \___ /| .__/ \___|_| |_|_| |_|\__,_|_| |_|\__,_|___/
-          |_|"""
+    # ASCII art with consistent line lengths for proper alignment
+    banner_lines = [
+        r"     ___                    _   _                 _     ",
+        r"    /  _ \ _ __   ___ _ __ | | | | __ _ _ __   __| |___",
+        r"    | | | | '_ \ / _ \ '_ \| |_| |/ _` | '_ \ / _` / __|",
+        r"    | |_| | |_) |  __/ | | |  _  | (_| | | | | (_| \__ \ ",
+        r"    \___ /| .__/ \___|_| |_|_| |_|\__,_|_| |_|\__,_|___/",
+        r"          |_|                                           "
+    ]
+    
+    # Find the maximum line length
+    max_length = max(len(line) for line in banner_lines)
+    
+    # Pad all lines to the same length for consistent alignment
+    padded_lines = [line.ljust(max_length) for line in banner_lines]
+    
+    return "\n".join(padded_lines)
 
 
 def get_splash_content(conversation_id: str, *, theme: Theme) -> dict:
