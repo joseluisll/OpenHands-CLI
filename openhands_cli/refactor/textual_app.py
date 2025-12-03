@@ -685,13 +685,7 @@ class OpenHandsApp(App):
             # Process the content using existing message handling logic
             # Note: content here contains actual newlines, which is what we want
             # for processing multi-line input
-            self.run_worker(
-                self._handle_textarea_submission(content), name="handle_textarea"
-            )
-
-    async def _handle_textarea_submission(self, content: str) -> None:
-        """Handle textarea submission using existing message processing logic."""
-        await self._handle_user_input(content)
+            self.run_worker(self._handle_user_input(content), name="handle_textarea")
 
     def _handle_conversation_error(self, title: str, message: str) -> None:
         """Handle conversation errors by showing a notification.
