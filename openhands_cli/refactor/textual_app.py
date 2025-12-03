@@ -226,14 +226,10 @@ class OpenHandsApp(App):
         self.conversation_runner = ConversationRunner(
             self.conversation_id,
             self.conversation_running_signal.publish,
+            self._handle_confirmation_request,
             self._handle_conversation_error,
             visualizer,
             self.initial_confirmation_policy,
-        )
-
-        # Set up confirmation callback
-        self.conversation_runner.set_confirmation_callback(
-            self._handle_confirmation_request
         )
 
         # Process any queued inputs

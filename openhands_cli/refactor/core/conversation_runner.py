@@ -25,6 +25,7 @@ class ConversationRunner:
         self,
         conversation_id: uuid.UUID,
         running_state_callback: Callable[[bool], None],
+        confirmation_callback: Callable,
         error_callback: Callable[[str, str], None],
         visualizer: TextualVisualizer,
         initial_confirmation_policy: ConfirmationPolicyBase | None = None,
@@ -51,7 +52,7 @@ class ConversationRunner:
             self.initial_confirmation_policy, NeverConfirm
         )
         self.running_state_callback = running_state_callback
-        self._confirmation_callback: Callable | None = None
+        self._confirmation_callback: Callable = confirmation_callback
         self._error_callback: Callable[[str, str], None] = error_callback
 
     @property
@@ -78,15 +79,6 @@ class ConversationRunner:
         """Set the confirmation policy for the conversation."""
         if self.conversation:
             self.conversation.set_confirmation_policy(confirmation_policy)
-
-    def set_confirmation_callback(self, callback: Callable) -> None:
-        """Set the callback function for handling confirmation requests.
-
-        Args:
-            callback: Function that will be called when confirmation is needed.
-                     Should return UserConfirmation decision.
-        """
-        self._confirmation_callback = callback
 
     async def queue_message(self, user_input: str) -> None:
         """Queue a message for a running conversation"""
