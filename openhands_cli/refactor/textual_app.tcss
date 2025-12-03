@@ -41,14 +41,6 @@ Screen {
     margin-bottom: 1;
 }
 
-#status_line {
-    height: 1;
-    background: $background;
-    color: $secondary;
-    padding: 0 1;
-    margin-bottom: 1;
-}
-
 Footer {
     dock: bottom;
     background: $surface;

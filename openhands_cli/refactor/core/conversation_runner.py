@@ -24,8 +24,9 @@ class ConversationRunner:
     def __init__(
         self,
         conversation_id: uuid.UUID,
+        running_state_callback: Callable[[bool], None],
         error_callback: Callable[[str, str], None],
-        visualizer: TextualVisualizer | None = None,
+        visualizer: TextualVisualizer,
         initial_confirmation_policy: ConfirmationPolicyBase | None = None,
     ):
         """Initialize the conversation runner.
@@ -49,6 +50,7 @@ class ConversationRunner:
         self._confirmation_mode_active = not isinstance(
             self.initial_confirmation_policy, NeverConfirm
         )
+        self.running_state_callback = running_state_callback
         self._confirmation_callback: Callable | None = None
         self._error_callback: Callable[[str, str], None] = error_callback
 
@@ -162,7 +164,7 @@ class ConversationRunner:
         if not self.conversation:
             return
 
-        self._running = True
+        self._update_run_status(True)
         try:
             # Send message and run conversation
             self.conversation.send_message(message)
@@ -178,7 +180,7 @@ class ConversationRunner:
             # Handle any other unexpected errors
             self._handle_unexpected_error(e)
         finally:
-            self._running = False
+            self._update_run_status(False)
 
     def _run_with_confirmation(self) -> None:
         """Run conversation with confirmation mode enabled."""
@@ -278,11 +280,6 @@ class ConversationRunner:
         """Check if conversation is currently running."""
         return self._running
 
-    @property
-    def current_conversation_id(self) -> str | None:
-        """Get the current conversation ID as a string."""
-        return str(self.conversation_id) if self.conversation_id else None
-
     def pause(self) -> None:
         """Pause the running conversation."""
         if self.conversation and self._running:
@@ -303,3 +300,7 @@ class ConversationRunner:
             error: The unexpected exception that occurred
         """
         self._error_callback("Unexpected Error", f"{type(error).__name__}: {error}")
+
+    def _update_run_status(self, is_running: bool):
+        self._running = is_running
+        self.running_state_callback(is_running)

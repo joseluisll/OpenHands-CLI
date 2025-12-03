@@ -1,20 +1,21 @@
-
 from typing import ClassVar
-from textual.containers import Container
-from textual.binding import Binding
-from textual.message import Message
-from textual.widgets import Input, TextArea
-from textual.signal import Signal
 
-from openhands_cli.refactor.widgets.autocomplete import EnhancedAutoComplete
+from textual.binding import Binding
+from textual.containers import Container
+from textual.message import Message
+from textual.signal import Signal
+from textual.widgets import Input, TextArea
+
 from openhands_cli.refactor.core.commands import COMMANDS
+from openhands_cli.refactor.widgets.autocomplete import EnhancedAutoComplete
+
 
 class InputField(Container):
     BINDINGS: ClassVar = [
         Binding("f1", "toggle_input_mode", "Toggle single/multi-line input"),
         Binding("ctrl+j", "submit_textarea", "Submit multi-line input"),
     ]
-    
+
     DEFAULT_CSS = """
     #user_input {
         width: 100%;
@@ -54,23 +55,15 @@ class InputField(Container):
         """Message sent when input is submitted."""
 
         def __init__(self, content: str) -> None:
+            super().__init__()
             self.content = content
-            super().__init__()
-
-
-    class ModeChanged(Message):
-        """Message sent when input mode changes."""
-
-        def __init__(self, is_multiline: bool) -> None:
-            self.is_multiline = is_multiline
-            super().__init__()
 
     def __init__(self, placeholder: str = "", **kwargs) -> None:
         super().__init__(**kwargs)
-        self.multiline_mode_changed = Signal(self, "multiline_mode_changed")
         self.placeholder = placeholder
         self.is_multiline_mode = False
         self.stored_content = ""
+        self.mutliline_mode_status = Signal(self, "mutliline_mode_status")
 
     def compose(self):
         """Create the input widgets."""
@@ -90,11 +83,7 @@ class InputField(Container):
         self.textarea_widget.display = False
         yield self.textarea_widget
 
-        yield EnhancedAutoComplete(
-            self.input_widget, 
-            command_candidates=COMMANDS
-        )
-
+        yield EnhancedAutoComplete(self.input_widget, command_candidates=COMMANDS)
 
     def on_mount(self) -> None:
         """Focus the input when mounted."""
@@ -121,8 +110,7 @@ class InputField(Container):
             self.textarea_widget.focus()
             self.is_multiline_mode = True
 
-        # Notify parent about mode change
-        self.post_message(self.ModeChanged(self.is_multiline_mode))
+        self.mutliline_mode_status.publish(self.is_multiline_mode)
 
     def action_submit_textarea(self) -> None:
         """Submit the content from the TextArea."""

@@ -10,7 +10,6 @@ It creates a basic app with:
 
 import asyncio
 import os
-import time
 import uuid
 from collections.abc import Iterable
 from typing import ClassVar
@@ -19,7 +18,7 @@ from textual import getters, on
 from textual.app import App, ComposeResult, SystemCommand
 from textual.containers import Container, Horizontal, VerticalScroll
 from textual.screen import Screen
-from textual.timer import Timer
+from textual.signal import Signal
 from textual.widgets import Footer, Static
 
 from openhands.sdk.security.confirmation_policy import (
@@ -43,6 +42,9 @@ from openhands_cli.refactor.widgets.non_clickable_collapsible import (
     NonClickableCollapsible,
 )
 from openhands_cli.refactor.widgets.richlog_visualizer import TextualVisualizer
+from openhands_cli.refactor.widgets.status_line import (
+    StatusLine,
+)
 from openhands_cli.user_actions.types import UserConfirmation
 
 
@@ -81,6 +83,8 @@ class OpenHandsApp(App):
         """
         super().__init__(**kwargs)
 
+        self.conversation_running_signal = Signal(self, "conversation_running_signal")
+
         # Store exit confirmation setting
         self.exit_confirmation = exit_confirmation
 
@@ -99,10 +103,6 @@ class OpenHandsApp(App):
 
         # Initialize conversation runner (updated with write callback in on_mount)
         self.conversation_runner = None
-
-        # Timer tracking
-        self.conversation_start_time: float | None = None
-        self.timer_update_task: Timer | None = None
 
         # Confirmation panel tracking
         self.confirmation_panel: ConfirmationSidePanel | None = None
@@ -141,8 +141,7 @@ class OpenHandsApp(App):
                 placeholder="Type your message, @mention a file, or / for commands"
             )
 
-            # Status line - shows work directory and timer (inside input area)
-            yield Static(id="status_line")
+            yield StatusLine(self)
 
         # Footer - shows available key bindings
         yield Footer()
@@ -226,6 +225,7 @@ class OpenHandsApp(App):
 
         self.conversation_runner = ConversationRunner(
             self.conversation_id,
+            self.conversation_running_signal.publish,
             self._handle_conversation_error,
             visualizer,
             self.initial_confirmation_policy,
@@ -235,9 +235,6 @@ class OpenHandsApp(App):
         self.conversation_runner.set_confirmation_callback(
             self._handle_confirmation_request
         )
-
-        # Initialize status line
-        self.update_status_line()
 
         # Process any queued inputs
         self._process_queued_inputs()
@@ -272,55 +269,6 @@ class OpenHandsApp(App):
             work_dir = work_dir.replace(os.path.expanduser("~"), "~", 1)
 
         return work_dir
-
-    @on(InputField.ModeChanged)
-    def update_status_line(self) -> None:
-        """Update the status line with current information."""
-        status_widget = self.query_one("#status_line", Static)
-        work_dir = self.get_work_dir_display()
-
-        # Add input mode indicator
-        if self.input_field.is_multiline_mode:
-            mode_indicator = " [Multi-line: Ctrl+J to submit]"
-        else:
-            mode_indicator = " [F1 for multi-line]"
-
-        # Only show controls and timer when conversation is running
-        if (
-            self.conversation_runner
-            and self.conversation_runner.is_running
-            and self.conversation_start_time
-        ):
-            elapsed = int(time.time() - self.conversation_start_time)
-            status_text = (
-                f"{work_dir} ✦ (esc to cancel • {elapsed}s , F2 to show details)"
-                f"{mode_indicator}"
-            )
-        else:
-            # Just show work directory when not running
-            status_text = f"{work_dir}{mode_indicator}"
-
-        status_widget.update(status_text)
-
-    async def start_timer(self) -> None:
-        """Start the conversation timer."""
-        self.conversation_start_time = time.time()
-
-        # Cancel any existing timer task
-        if self.timer_update_task:
-            self.timer_update_task.stop()
-
-        # Start a new timer task that updates every second
-        self.timer_update_task = self.set_interval(1.0, self.update_status_line)
-
-    def stop_timer(self) -> None:
-        """Stop the conversation timer."""
-        if self.timer_update_task:
-            self.timer_update_task.stop()
-            self.timer_update_task = None
-
-        self.conversation_start_time = None
-        self.update_status_line()
 
     @on(InputField.Submitted)
     async def handle_user_input(self, message: InputField.Submitted) -> None:
@@ -382,14 +330,11 @@ class OpenHandsApp(App):
             await self.conversation_runner.queue_message(user_message)
             return
 
-        # Start the timer
-        self.call_later(self.start_timer)
-
         # Process message asynchronously to keep UI responsive
         # Only run worker if we have an active app (not in tests)
         try:
             self.run_worker(
-                self._process_message_with_timer(user_message),
+                self.conversation_runner.process_message_async(user_message),
                 name="process_message",
             )
         except RuntimeError:
@@ -400,17 +345,6 @@ class OpenHandsApp(App):
             )
             self.main_display.mount(placeholder_widget)
             self.main_display.scroll_end(animate=False)
-
-    async def _process_message_with_timer(self, user_message: str) -> None:
-        """Process message and handle timer lifecycle."""
-        if self.conversation_runner is None:
-            return
-
-        try:
-            await self.conversation_runner.process_message_async(user_message)
-        finally:
-            # Stop the timer when processing is complete
-            self.stop_timer()
 
     def action_request_quit(self) -> None:
         """Action to handle Ctrl+Q key binding."""
