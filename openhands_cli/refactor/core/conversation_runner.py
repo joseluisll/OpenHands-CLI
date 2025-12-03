@@ -25,19 +25,19 @@ class ConversationRunner:
     def __init__(
         self,
         conversation_id: uuid.UUID,
+        error_callback: Callable[[str, str], None],
         visualizer: TextualVisualizer | None = None,
         initial_confirmation_policy: ConfirmationPolicyBase | None = None,
-        error_callback: Callable[[str, str], None] | None = None,
     ):
         """Initialize the conversation runner.
 
         Args:
             conversation_id: UUID for the conversation.
+            error_callback: Callback for handling errors.
+                          Should accept (error_title: str, error_message: str).
             visualizer: Optional visualizer for output display.
             initial_confirmation_policy: Initial confirmation policy to use.
                                         If None, defaults to AlwaysConfirm.
-            error_callback: Optional callback for handling errors.
-                          Should accept (error_title: str, error_message: str).
         """
         self.conversation: BaseConversation | None = None
         self.conversation_id: uuid.UUID = conversation_id
@@ -51,7 +51,7 @@ class ConversationRunner:
             self.initial_confirmation_policy, NeverConfirm
         )
         self._confirmation_callback: Callable | None = None
-        self._error_callback: Callable[[str, str], None] | None = error_callback
+        self._error_callback: Callable[[str, str], None] = error_callback
 
     @property
     def is_confirmation_mode_active(self) -> bool:
@@ -295,9 +295,7 @@ class ConversationRunner:
         Args:
             error: The ConversationRunError that occurred
         """
-        # Call the error callback if available
-        if self._error_callback:
-            self._error_callback("Conversation Error", str(error))
+        self._error_callback("Conversation Error", str(error))
 
     def _handle_unexpected_error(self, error: Exception) -> None:
         """Handle unexpected errors by passing them to the error callback.
@@ -305,6 +303,4 @@ class ConversationRunner:
         Args:
             error: The unexpected exception that occurred
         """
-        # Call the error callback if available
-        if self._error_callback:
-            self._error_callback("Unexpected Error", f"{type(error).__name__}: {error}")
+        self._error_callback("Unexpected Error", f"{type(error).__name__}: {error}")

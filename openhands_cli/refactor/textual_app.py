@@ -241,10 +241,10 @@ class OpenHandsApp(App):
         visualizer = TextualVisualizer(main_display, self)
 
         self.conversation_runner = ConversationRunner(
-            self.conversation_id, 
+            self.conversation_id,
+            self._handle_conversation_error,
             visualizer, 
-            self.initial_confirmation_policy,
-            error_callback=self._handle_conversation_error
+            self.initial_confirmation_policy
         )
 
         # Set up confirmation callback
