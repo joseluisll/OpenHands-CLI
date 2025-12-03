@@ -156,12 +156,8 @@ class OpenHandsApp(App):
     def on_mount(self) -> None:
         """Called when app starts."""
         # Check if user has existing settings
-        from openhands_cli.tui.settings.store import AgentStore
 
-        agent_store = AgentStore()
-        existing_agent = agent_store.load()
-
-        if existing_agent is None:
+        if SettingsScreen.is_initial_setup_required():
             # No existing settings - show settings screen first
             self._show_initial_settings()
             return
@@ -179,11 +175,6 @@ class OpenHandsApp(App):
         if result:
             # Settings were saved successfully - initialize main UI
             self._initialize_main_ui()
-            self.notify(
-                "Settings saved successfully! Welcome to OpenHands CLI!",
-                severity="information",
-                timeout=3.0,
-            )
         else:
             # Settings were cancelled and no existing settings exist - show exit modal
             self.push_screen(ExitConfirmationModal())
@@ -271,12 +262,12 @@ class OpenHandsApp(App):
             self._handle_confirm_command()
         elif command == "/exit":
             self._handle_exit()
-
-        self.notify(
-            title="Command error",
-            message=f"Unknown command: {command}",
-            severity="error",
-        )
+        else:
+            self.notify(
+                title="Command error",
+                message=f"Unknown command: {command}",
+                severity="error",
+            )
 
     async def _handle_user_input(self, raw_input: str) -> None:
         """Unified pipeline for handling any user-submitted text.
@@ -481,7 +472,7 @@ class OpenHandsApp(App):
             self.mcp_panel.remove()
             self.mcp_panel = None
 
-    def action_open_settings(self) -> None:
+    def action_open_settings(self, is_inital_setup: bool = False) -> None:
         """Action to open the settings screen."""
         # Check if conversation is running
         if self.conversation_runner and self.conversation_runner.is_running:
@@ -494,7 +485,7 @@ class OpenHandsApp(App):
             return
 
         # Open the settings screen
-        settings_screen = SettingsScreen()
+        settings_screen = SettingsScreen(is_inital_setup=is_inital_setup)
         self.push_screen(settings_screen, settings_screen._handle_settings_result)
 
 

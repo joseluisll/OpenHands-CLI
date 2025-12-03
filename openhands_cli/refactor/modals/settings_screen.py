@@ -604,15 +604,28 @@ class SettingsScreen(ModalScreen):
         self.agent_store.save(self.current_agent)
 
     def _handle_settings_result(self, result) -> None:
+        message = "Settings saved successfully!"
+        if self.is_initial_setup:
+            message = "Settings saved successfully! Welcome to OpenHands CLI!"
+
         if result:
             try:
                 self.current_agent = self.agent_store.load()
-                self.notify(
-                    "Settings saved successfully!", severity="information", timeout=3.0
-                )
+                self.notify(message, severity="information", timeout=3.0)
             except Exception as e:
                 self.notify(
                     f"Settings saved but failed to reload agent: {str(e)}",
                     severity="warning",
                     timeout=5.0,
                 )
+
+    @staticmethod
+    def is_initial_setup_required() -> bool:
+        """Check if initial setup is required.
+
+        Returns:
+            True if initial setup is needed (no existing settings), False otherwise
+        """
+        agent_store = AgentStore()
+        existing_agent = agent_store.load()
+        return existing_agent is None
