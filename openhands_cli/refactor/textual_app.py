@@ -267,7 +267,21 @@ class OpenHandsApp(App):
 
     @on(InputField.Submitted)
     async def handle_user_input(self, message: InputField.Submitted) -> None:
-        await self._handle_user_input(message.content)
+        content = message.content.strip()
+        if not content:
+            return
+
+        # Add the user message to the main display as a Static widget
+        user_message_widget = Static(f"> {content}", classes="user-message")
+        self.main_display.mount(user_message_widget)
+        self.main_display.scroll_end(animate=False)
+
+        # Handle commands - only exact matches
+        if is_valid_command(content):
+            self._handle_command(content)
+        else:
+            # Handle regular messages with conversation runner
+            await self._handle_user_message(content)
 
     def _handle_command(self, command: str) -> None:
         """Handle command execution."""
@@ -284,29 +298,6 @@ class OpenHandsApp(App):
                 message=f"Unknown command: {command}",
                 severity="error",
             )
-
-    async def _handle_user_input(self, raw_input: str) -> None:
-        """Unified pipeline for handling any user-submitted text.
-
-        - Renders the user message into the main display
-        - Routes commands to the command handler
-        - Routes everything else to the conversation runner
-        """
-        content = raw_input.strip()
-        if not content:
-            return
-
-        # Add the user message to the main display as a Static widget
-        user_message_widget = Static(f"> {content}", classes="user-message")
-        self.main_display.mount(user_message_widget)
-        self.main_display.scroll_end(animate=False)
-
-        # Handle commands - only exact matches
-        if is_valid_command(content):
-            self._handle_command(content)
-        else:
-            # Handle regular messages with conversation runner
-            await self._handle_user_message(content)
 
     async def _handle_user_message(self, user_message: str) -> None:
         """Handle regular user messages with the conversation runner."""
