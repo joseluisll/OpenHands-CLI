@@ -9,7 +9,6 @@ It creates a basic app with:
 """
 
 import asyncio
-import os
 import uuid
 from collections.abc import Iterable
 from typing import ClassVar
@@ -28,7 +27,6 @@ from openhands.sdk.security.confirmation_policy import (
     NeverConfirm,
 )
 from openhands.sdk.security.risk import SecurityRisk
-from openhands_cli.locations import WORK_DIR
 from openhands_cli.refactor.content.splash import get_splash_content
 from openhands_cli.refactor.core.commands import is_valid_command, show_help
 from openhands_cli.refactor.core.conversation_runner import ConversationRunner
@@ -227,7 +225,11 @@ class OpenHandsApp(App):
             self.conversation_id,
             self.conversation_running_signal.publish,
             self._handle_confirmation_request,
-            self._handle_conversation_error,
+            lambda title, message: (
+                self.notify(
+                    title=title, message=message, severity="error", timeout=10.0
+                )
+            ),
             visualizer,
             self.initial_confirmation_policy,
         )
@@ -256,16 +258,6 @@ class OpenHandsApp(App):
         # Handle the message asynchronously
         asyncio.create_task(self._handle_user_message(user_input))
 
-    def get_work_dir_display(self) -> str:
-        """Get the work directory display string."""
-        work_dir = WORK_DIR
-
-        # Shorten the path for display
-        if work_dir.startswith(os.path.expanduser("~")):
-            work_dir = work_dir.replace(os.path.expanduser("~"), "~", 1)
-
-        return work_dir
-
     @on(InputField.Submitted)
     async def handle_user_input(self, message: InputField.Submitted) -> None:
         await self._handle_user_input(message.content)
@@ -279,12 +271,12 @@ class OpenHandsApp(App):
             self._handle_confirm_command()
         elif command == "/exit":
             self._handle_exit()
-        else:
-            error_widget = Static(
-                f"Unknown command: {command}", classes="error-message"
-            )
-            self.main_display.mount(error_widget)
-            self.main_display.scroll_end(animate=False)
+
+        self.notify(
+            title="Command error",
+            message=f"Unknown command: {command}",
+            severity="error",
+        )
 
     async def _handle_user_input(self, raw_input: str) -> None:
         """Unified pipeline for handling any user-submitted text.
@@ -503,36 +495,7 @@ class OpenHandsApp(App):
 
         # Open the settings screen
         settings_screen = SettingsScreen()
-        self.push_screen(settings_screen, self._handle_settings_result)
-
-    def _handle_settings_result(self, result) -> None:
-        """Handle the result from the settings screen."""
-        if result:
-            # Settings were saved successfully - reload the agent
-            try:
-                from openhands_cli.tui.settings.store import AgentStore
-
-                agent_store = AgentStore()
-                self.agent = agent_store.load()
-
-                self.notify(
-                    "Settings saved successfully!", severity="information", timeout=3.0
-                )
-            except Exception as e:
-                self.notify(
-                    f"Settings saved but failed to reload agent: {str(e)}",
-                    severity="warning",
-                    timeout=5.0,
-                )
-
-    def _handle_conversation_error(self, title: str, message: str) -> None:
-        """Handle conversation errors by showing a notification.
-
-        Args:
-            title: Error title
-            message: Error message
-        """
-        self.notify(f"{title}: {message}", severity="error", timeout=10.0)
+        self.push_screen(settings_screen, settings_screen._handle_settings_result)
 
 
 def main(

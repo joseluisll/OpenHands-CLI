@@ -602,3 +602,17 @@ class SettingsScreen(ModalScreen):
             )
 
         self.agent_store.save(self.current_agent)
+
+    def _handle_settings_result(self, result) -> None:
+        if result:
+            try:
+                self.current_agent = self.agent_store.load()
+                self.notify(
+                    "Settings saved successfully!", severity="information", timeout=3.0
+                )
+            except Exception as e:
+                self.notify(
+                    f"Settings saved but failed to reload agent: {str(e)}",
+                    severity="warning",
+                    timeout=5.0,
+                )
