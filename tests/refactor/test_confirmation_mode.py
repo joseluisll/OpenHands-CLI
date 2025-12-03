@@ -4,10 +4,10 @@ import uuid
 from unittest.mock import MagicMock, patch
 
 from openhands.sdk.security.confirmation_policy import AlwaysConfirm
-from openhands_cli.refactor.confirmation_panel import (
+from openhands_cli.refactor.core.conversation_runner import ConversationRunner
+from openhands_cli.refactor.panels.confirmation_panel import (
     ConfirmationPanel,
 )
-from openhands_cli.refactor.conversation_runner import ConversationRunner
 from openhands_cli.refactor.textual_app import OpenHandsApp
 from openhands_cli.user_actions.types import UserConfirmation
 
@@ -218,7 +218,10 @@ class TestConfirmationIntegration:
 
     def test_app_has_confirm_command(self):
         """Test that the app recognizes /confirm as a valid command."""
-        from openhands_cli.refactor.commands import get_valid_commands, is_valid_command
+        from openhands_cli.refactor.core.commands import (
+            get_valid_commands,
+            is_valid_command,
+        )
 
         valid_commands = get_valid_commands()
         assert "/confirm" in valid_commands

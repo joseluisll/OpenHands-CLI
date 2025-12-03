@@ -9,7 +9,7 @@ from openhands.sdk.security.confirmation_policy import (
     NeverConfirm,
 )
 from openhands.sdk.security.risk import SecurityRisk
-from openhands_cli.refactor.conversation_runner import ConversationRunner
+from openhands_cli.refactor.core.conversation_runner import ConversationRunner
 from openhands_cli.refactor.textual_app import OpenHandsApp, main
 
 

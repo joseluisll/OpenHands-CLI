@@ -3,7 +3,7 @@
 import unittest
 from unittest import mock
 
-from openhands_cli.refactor.richlog_visualizer import TextualVisualizer
+from openhands_cli.refactor.widgets.richlog_visualizer import TextualVisualizer
 
 
 class TestTextualVisualizer(unittest.TestCase):
@@ -67,7 +67,7 @@ class TestTextualVisualizer(unittest.TestCase):
     def test_add_widget_to_ui_calls_scroll_end(self):
         """Test that _add_widget_to_ui calls scroll_end after mounting widget."""
 
-        from openhands_cli.refactor.non_clickable_collapsible import (
+        from openhands_cli.refactor.widgets.non_clickable_collapsible import (
             NonClickableCollapsible,
         )
 

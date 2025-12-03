@@ -3,7 +3,9 @@
 import unittest
 from unittest.mock import MagicMock, patch
 
-from openhands_cli.refactor.non_clickable_collapsible import NonClickableCollapsible
+from openhands_cli.refactor.widgets.non_clickable_collapsible import (
+    NonClickableCollapsible,
+)
 
 
 class TestNonClickableCollapsible(unittest.TestCase):
@@ -69,7 +71,7 @@ Line 3 with special chars: !@#$%^&*()"""
         # Mock the app property since it's read-only
         with patch.object(type(component), "app", new_callable=lambda: mock_app):
             # Create a mock event to trigger the copy
-            from openhands_cli.refactor.non_clickable_collapsible import (
+            from openhands_cli.refactor.widgets.non_clickable_collapsible import (
                 NonClickableCollapsibleTitle,
             )
 

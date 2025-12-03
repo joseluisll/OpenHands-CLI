@@ -3,7 +3,7 @@
 import uuid
 from unittest.mock import MagicMock, patch
 
-from openhands_cli.refactor.conversation_runner import ConversationRunner
+from openhands_cli.refactor.core.conversation_runner import ConversationRunner
 from openhands_cli.refactor.textual_app import OpenHandsApp
 
 

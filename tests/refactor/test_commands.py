@@ -6,7 +6,7 @@ import pytest
 from textual.containers import VerticalScroll
 from textual_autocomplete import DropdownItem
 
-from openhands_cli.refactor.commands import COMMANDS, show_help
+from openhands_cli.refactor.core.commands import COMMANDS, show_help
 
 
 class TestCommands:
@@ -88,7 +88,7 @@ class TestCommands:
 
     def test_show_help_uses_theme_colors(self):
         """Test that show_help uses OpenHands theme colors."""
-        from openhands_cli.refactor.theme import OPENHANDS_THEME
+        from openhands_cli.refactor.core.theme import OPENHANDS_THEME
 
         mock_main_display = mock.MagicMock(spec=VerticalScroll)
 
@@ -107,7 +107,7 @@ class TestCommands:
 
     def test_show_help_formatting(self):
         """Test that show_help has proper Rich markup formatting."""
-        from openhands_cli.refactor.theme import OPENHANDS_THEME
+        from openhands_cli.refactor.core.theme import OPENHANDS_THEME
 
         mock_main_display = mock.MagicMock(spec=VerticalScroll)
 

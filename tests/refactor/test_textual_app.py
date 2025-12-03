@@ -65,7 +65,7 @@ class TestOpenHandsApp:
     @mock.patch("openhands_cli.refactor.textual_app.get_welcome_message")
     async def test_on_mount_adds_welcome_message(self, mock_welcome):
         """Test that on_mount adds welcome message to display."""
-        from openhands_cli.refactor.theme import OPENHANDS_THEME
+        from openhands_cli.refactor.core.theme import OPENHANDS_THEME
 
         welcome_text = "Test welcome message"
         mock_welcome.return_value = welcome_text
@@ -260,7 +260,7 @@ class TestOpenHandsApp:
     @mock.patch("openhands_cli.refactor.textual_app.get_welcome_message")
     async def test_welcome_message_called_on_mount(self, mock_welcome):
         """Test that get_welcome_message is called during on_mount."""
-        from openhands_cli.refactor.theme import OPENHANDS_THEME
+        from openhands_cli.refactor.core.theme import OPENHANDS_THEME
 
         mock_welcome.return_value = "Test message"
 
@@ -303,7 +303,7 @@ class TestOpenHandsApp:
 
     def test_custom_theme_properties(self):
         """Test that custom OpenHands theme has correct colors."""
-        from openhands_cli.refactor.theme import OPENHANDS_THEME
+        from openhands_cli.refactor.core.theme import OPENHANDS_THEME
 
         # Check theme has correct properties
         assert OPENHANDS_THEME.name == "openhands"

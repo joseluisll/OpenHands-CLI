@@ -18,8 +18,10 @@ from openhands.sdk.event import (
 )
 from openhands.sdk.event.base import Event
 from openhands.sdk.event.condenser import Condensation
-from openhands_cli.refactor.widgets.non_clickable_collapsible import NonClickableCollapsible
 from openhands_cli.refactor.core.theme import OPENHANDS_THEME
+from openhands_cli.refactor.widgets.non_clickable_collapsible import (
+    NonClickableCollapsible,
+)
 
 
 if TYPE_CHECKING:

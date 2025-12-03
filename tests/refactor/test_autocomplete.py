@@ -7,17 +7,17 @@ from textual.containers import VerticalScroll
 from textual.widgets import Input
 from textual_autocomplete import AutoComplete, TargetState
 
-from openhands_cli.refactor.autocomplete import (
-    CommandAutoComplete,
-    EnhancedAutoComplete,
-)
-from openhands_cli.refactor.commands import (
+from openhands_cli.refactor.core.commands import (
     COMMANDS,
     get_valid_commands,
     is_valid_command,
     show_help,
 )
 from openhands_cli.refactor.textual_app import OpenHandsApp
+from openhands_cli.refactor.widgets.autocomplete import (
+    CommandAutoComplete,
+    EnhancedAutoComplete,
+)
 
 
 class TestCommandsAndAutocomplete:
@@ -82,7 +82,7 @@ class TestCommandsAndAutocomplete:
         app.push_screen.assert_called_once()
         # Verify the argument is an ExitConfirmationModal instance
         modal_arg = app.push_screen.call_args[0][0]
-        from openhands_cli.refactor.exit_modal import ExitConfirmationModal
+        from openhands_cli.refactor.modals.exit_modal import ExitConfirmationModal
 
         assert isinstance(modal_arg, ExitConfirmationModal)
 
@@ -114,7 +114,7 @@ class TestCommandsAndAutocomplete:
         # Check that modal screen was pushed
         app.push_screen.assert_called_once()
         modal_arg = app.push_screen.call_args[0][0]
-        from openhands_cli.refactor.exit_modal import ExitConfirmationModal
+        from openhands_cli.refactor.modals.exit_modal import ExitConfirmationModal
 
         assert isinstance(modal_arg, ExitConfirmationModal)
 
@@ -122,7 +122,7 @@ class TestCommandsAndAutocomplete:
         """Test that ExitConfirmationModal works correctly."""
         from textual.containers import Grid
 
-        from openhands_cli.refactor.exit_modal import ExitConfirmationModal
+        from openhands_cli.refactor.modals.exit_modal import ExitConfirmationModal
 
         # Create modal instance
         modal = ExitConfirmationModal()
@@ -147,7 +147,7 @@ class TestCommandsAndAutocomplete:
 
         from textual.widgets import Button
 
-        from openhands_cli.refactor.exit_modal import ExitConfirmationModal
+        from openhands_cli.refactor.modals.exit_modal import ExitConfirmationModal
 
         modal = ExitConfirmationModal()
 
