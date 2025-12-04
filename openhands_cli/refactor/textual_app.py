@@ -60,6 +60,7 @@ class OpenHandsApp(App):
 
     input_field: getters.query_one[InputField] = getters.query_one(InputField)
     main_display: getters.query_one[VerticalScroll] = getters.query_one("#main_display")
+    content_area: getters.query_one[Horizontal] = getters.query_one("#content_area")
 
     def __init__(
         self,
@@ -443,11 +444,10 @@ class OpenHandsApp(App):
                         decision_future.set_result(decision)
 
                 # Create and mount the confirmation panel
-                content_area = self.query_one("#content_area", Horizontal)
                 self.confirmation_panel = ConfirmationSidePanel(
                     pending_actions, on_confirmation_decision
                 )
-                content_area.mount(self.confirmation_panel)
+                self.content_area.mount(self.confirmation_panel)
 
             except Exception:
                 # If there's an error, default to DEFER
@@ -473,8 +473,6 @@ class OpenHandsApp(App):
 
     def action_toggle_mcp_panel(self) -> None:
         """Action to toggle the MCP side panel."""
-        content_area = self.query_one("#content_area", Horizontal)
-
         if self.mcp_panel is None:
             # Create and mount the MCP panel
             agent = None
@@ -487,7 +485,7 @@ class OpenHandsApp(App):
                 pass
 
             self.mcp_panel = MCPSidePanel(agent=agent)
-            content_area.mount(self.mcp_panel)
+            self.content_area.mount(self.mcp_panel)
         else:
             # Remove the existing panel
             self.mcp_panel.remove()
