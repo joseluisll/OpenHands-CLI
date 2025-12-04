@@ -137,7 +137,7 @@ class OpenHandsApp(App):
 
         # Input area - docked to bottom
         with Container(id="input_area"):
-            yield InputField(placeholder="💬 Message, @file, or /command")
+            yield InputField(placeholder="Message, @file, or /command")
 
             yield StatusLine(self)
 
@@ -249,7 +249,7 @@ class OpenHandsApp(App):
             display.add_class("conversation-running")
             display.remove_class("conversation-paused")
             display.remove_class("conversation-error")
-            display.border_title = "🤖 Agent is working..."
+            display.border_title = "Agent is working..."
         else:
             display.remove_class("conversation-running")
             display.border_title = None
@@ -262,7 +262,7 @@ class OpenHandsApp(App):
             error_details: Detailed error information
         """
         error_container = Container(classes="error-container")
-        error_container.border_title = "❌ Error"
+        error_container.border_title = "Error"
 
         title_widget = Static(f"{error_title}", classes="error-title")
         details_widget = Static(error_details, classes="error-details")

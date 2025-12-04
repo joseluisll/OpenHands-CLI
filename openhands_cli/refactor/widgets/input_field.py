@@ -85,7 +85,7 @@ class InputField(Container):
             show_line_numbers=False,
         )
         self.textarea_widget.display = False
-        self.textarea_widget.border_title = "📝 Multi-line Mode (Ctrl+J to submit)"
+        self.textarea_widget.border_title = "Multi-line Mode (Ctrl+J to submit)"
         yield self.textarea_widget
 
         yield EnhancedAutoComplete(self.input_widget, command_candidates=COMMANDS)

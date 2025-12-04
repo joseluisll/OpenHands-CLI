@@ -33,7 +33,7 @@ class StatusLine(Static):
         self._timer: Timer | None = None
 
         self.main_app = app
-        self.mode_indicator = " 💬 Single-line • F1 for multi-line"
+        self.mode_indicator = " Single-line • F1 for multi-line"
         self.work_dir_display = self._get_work_dir_display()
 
     def on_mount(self) -> None:
@@ -54,9 +54,9 @@ class StatusLine(Static):
 
     def _on_handle_mutliline_mode(self, is_multiline_mode: bool) -> None:
         if is_multiline_mode:
-            self.mode_indicator = " 📝 Multi-line mode • Ctrl+J to submit"
+            self.mode_indicator = " Multi-line mode • Ctrl+J to submit"
         else:
-            self.mode_indicator = " 💬 Single-line • F1 for multi-line"
+            self.mode_indicator = " Single-line • F1 for multi-line"
         self._update_text()
 
     def _on_conversation_state_changed(self, is_running: bool) -> None:
@@ -90,14 +90,14 @@ class StatusLine(Static):
         home = os.path.expanduser("~")
         if work_dir.startswith(home):
             work_dir = work_dir.replace(home, "~", 1)
-        return f"📁 {work_dir}"
+        return f"{work_dir}"
 
     def _get_elapsed_text(self) -> str:
         """Return timer text if conversation is running."""
         if not self._conversation_start_time:
             return ""
         elapsed = int(time.time() - self._conversation_start_time)
-        return f" • ⏱️  {elapsed}s • ESC: pause • F2: expand"
+        return f" • {elapsed}s • ESC: pause • F2: expand"
 
     def _update_text(self) -> None:
         """Rebuild the full status line text."""
