@@ -82,6 +82,7 @@ class OpenHandsApp(App):
         super().__init__(**kwargs)
 
         self.conversation_running_signal = Signal(self, "conversation_running_signal")
+        self.is_ui_initialized = False
 
         # Store exit confirmation setting
         self.exit_confirmation = exit_confirmation
@@ -168,9 +169,8 @@ class OpenHandsApp(App):
     def _show_initial_settings(self) -> None:
         """Show settings screen for first-time users."""
         settings_screen = SettingsScreen(
-            is_initial_setup=True,
             on_settings_saved=self._initialize_main_ui,
-            on_settings_cancelled=self._handle_initial_setup_cancelled,
+            on_first_time_settings_cancelled=self._handle_initial_setup_cancelled,
         )
         self.push_screen(settings_screen)
 
@@ -178,9 +178,13 @@ class OpenHandsApp(App):
         """Handle when initial setup is cancelled - show settings again."""
         # For first-time users, cancelling should loop back to settings
         # This creates the loop until they either save settings or exit
-        self._show_initial_settings()
+        exit_modal = ExitConfirmationModal(
+            on_exit_confirmed=lambda: self.app.exit(),
+            on_exit_cancelled=self._show_initial_settings,
+        )
+        self.app.push_screen(exit_modal)
 
-    def action_open_settings(self, is_inital_setup: bool = False) -> None:
+    def action_open_settings(self) -> None:
         """Action to open the settings screen."""
         # Check if conversation is running
         if self.conversation_runner and self.conversation_runner.is_running:
@@ -194,14 +198,17 @@ class OpenHandsApp(App):
 
         # Open the settings screen for existing users
         settings_screen = SettingsScreen(
-            is_initial_setup=is_inital_setup,
-            on_settings_saved=lambda: None,  # Just close, no special action needed
-            on_settings_cancelled=lambda: None,  # Just close, return to main UI
+            on_settings_saved=lambda: None,  # Just close
+            on_first_time_settings_cancelled=lambda: None,  # Just close
         )
         self.push_screen(settings_screen)
 
     def _initialize_main_ui(self) -> None:
         """Initialize the main UI components."""
+
+        if self.is_ui_initialized:
+            return
+
         # Get structured splash content
         splash_content = get_splash_content(
             conversation_id=self.conversation_id.hex, theme=OPENHANDS_THEME
@@ -248,6 +255,8 @@ class OpenHandsApp(App):
 
         # Process any queued inputs
         self._process_queued_inputs()
+
+        self.is_ui_initialized = True
 
     def _process_queued_inputs(self) -> None:
         """Process any queued inputs from --task or --file arguments.

@@ -5,7 +5,8 @@ the main UI, allowing users to configure their agent settings including
 LLM provider, model, API keys, and advanced options.
 """
 
-from typing import Any, Callable, ClassVar
+from collections.abc import Callable
+from typing import Any, ClassVar
 
 from textual import getters
 from textual.app import ComposeResult
@@ -55,9 +56,8 @@ class SettingsScreen(ModalScreen):
 
     def __init__(
         self,
-        is_initial_setup: bool = False,
         on_settings_saved: Callable[[], None] | None = None,
-        on_settings_cancelled: Callable[[], None] | None = None,
+        on_first_time_settings_cancelled: Callable[[], None] | None = None,
         **kwargs,
     ):
         """Initialize the settings screen.
@@ -72,9 +72,9 @@ class SettingsScreen(ModalScreen):
         self.current_agent = None
         self.is_advanced_mode = False
         self.message_widget = None
-        self.is_initial_setup = is_initial_setup
+        self.is_initial_setup = SettingsScreen.is_initial_setup_required()
         self.on_settings_saved = on_settings_saved
-        self.on_settings_cancelled = on_settings_cancelled
+        self.on_first_time_settings_cancelled = on_first_time_settings_cancelled
 
     def compose(self) -> ComposeResult:
         """Create the settings form."""
@@ -218,7 +218,7 @@ class SettingsScreen(ModalScreen):
             self._load_current_settings()
             self._update_advanced_visibility()
             self._update_field_dependencies()
-        
+
         # Ensure buttons are always visible and accessible
         self._ensure_buttons_visible()
 
@@ -227,17 +227,17 @@ class SettingsScreen(ModalScreen):
         try:
             save_button = self.query_one("#save_button", Button)
             cancel_button = self.query_one("#cancel_button", Button)
-            
+
             # Make sure buttons are visible and enabled
             save_button.display = True
             cancel_button.display = True
             save_button.disabled = False
             cancel_button.disabled = False
-            
+
             # Ensure the button container is visible
             button_container = self.query_one("#button_container")
             button_container.display = True
-            
+
         except Exception:
             # If buttons can't be found, they might not be mounted yet
             # This is fine, they'll be visible when composed
@@ -450,19 +450,10 @@ class SettingsScreen(ModalScreen):
 
     def _handle_cancel(self) -> None:
         """Handle cancel action - delegate to appropriate callback."""
-        if self.is_initial_setup:
-            # Check if there are any existing settings
-            existing_agent = self.agent_store.load()
-            if existing_agent is None:
-                # No existing settings and this is initial setup
-                # Show exit modal, but if cancelled, return to settings
-                self._show_exit_modal_with_return()
-                return
+        if self.on_first_time_settings_cancelled and self.is_initial_setup:
+            self.on_first_time_settings_cancelled()
 
-        # For existing users or if we have settings, just close and return to main
-        if self.on_settings_cancelled:
-            self.on_settings_cancelled()
-        self._close_screen(success=False)
+        self.dismiss(False)
 
     def _save_settings(self) -> None:
         """Save the current settings."""
@@ -535,38 +526,22 @@ class SettingsScreen(ModalScreen):
         except Exception as e:
             self._show_message(f"Error saving settings: {str(e)}", is_error=True)
 
-    def _show_exit_modal_with_return(self) -> None:
-        """Show exit modal that returns to settings screen if cancelled."""
-        from openhands_cli.refactor.modals.exit_modal import ExitConfirmationModal
-
-        # Create exit modal with callback to return to settings
-        def on_exit_cancelled() -> None:
-            # Modal will dismiss itself, we just need to refresh the settings screen
-            self.call_after_refresh(self._refresh_after_modal_dismiss)
-        
-        exit_modal = ExitConfirmationModal(
-            on_exit_confirmed=lambda: self.app.exit(),
-            on_exit_cancelled=on_exit_cancelled,  # Refresh settings after modal dismisses itself
-        )
-        # Don't close the settings screen - just show the modal on top
-        self.app.push_screen(exit_modal)
-
     def _refresh_after_modal_dismiss(self) -> None:
         """Refresh the settings screen after returning from exit modal."""
         try:
             # Force a complete refresh of the screen
             self.refresh()
-            
+
             # Ensure buttons are visible and accessible
             self._ensure_buttons_visible()
-            
+
             # Focus the cancel button to make it clear it's available
             try:
                 cancel_button = self.query_one("#cancel_button", Button)
                 cancel_button.focus()
             except Exception:
                 pass
-                
+
         except Exception:
             # If refresh fails, just continue
             pass
