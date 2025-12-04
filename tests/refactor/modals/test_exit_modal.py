@@ -79,24 +79,24 @@ class TestExitConfirmationModal:
         def mock_exit_confirmed():
             call_order.append("callback_executed")
 
-        def mock_dismiss():
-            call_order.append("modal_dismissed")
-
         # Create modal with custom callback
         modal = ExitConfirmationModal(on_exit_confirmed=mock_exit_confirmed)
 
         # Mock the dismiss method to track when it's called
-        modal.dismiss = mock_dismiss
+        with mock.patch.object(modal, "dismiss") as mock_dismiss:
+            mock_dismiss.side_effect = lambda *args, **kwargs: call_order.append(
+                "modal_dismissed"
+            )
 
-        # Create a "yes" button press event
-        yes_button = Button("Yes, proceed", id="yes")
-        yes_event = Button.Pressed(yes_button)
+            # Create a "yes" button press event
+            yes_button = Button("Yes, proceed", id="yes")
+            yes_event = Button.Pressed(yes_button)
 
-        # Handle the button press
-        modal.on_button_pressed(yes_event)
+            # Handle the button press
+            modal.on_button_pressed(yes_event)
 
-        # Verify the order: dismiss should be called before callback
-        assert call_order == ["modal_dismissed", "callback_executed"]
+            # Verify the order: dismiss should be called before callback
+            assert call_order == ["modal_dismissed", "callback_executed"]
 
     def test_callback_exceptions_do_not_break_modal(self):
         """Test that exceptions in callbacks don't prevent modal dismissal."""

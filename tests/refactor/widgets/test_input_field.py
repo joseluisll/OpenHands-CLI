@@ -1,6 +1,6 @@
 """Tests for InputField widget component."""
 
-from unittest.mock import Mock
+from unittest.mock import MagicMock, Mock
 
 import pytest
 from textual.widgets import Input, TextArea
@@ -17,11 +17,21 @@ def input_field() -> InputField:
 @pytest.fixture
 def field_with_mocks(input_field: InputField) -> InputField:
     """InputField with its internal widgets and signal mocked out."""
-    input_field.input_widget = Mock(spec=Input)
-    input_field.textarea_widget = Mock(spec=TextArea)
-    input_field.input_widget.focus = Mock()
-    input_field.textarea_widget.focus = Mock()
-    input_field.mutliline_mode_status = Mock()
+    input_field.input_widget = MagicMock(spec=Input)
+    input_field.textarea_widget = MagicMock(spec=TextArea)
+
+    # Create separate mock objects for focus methods
+    input_focus_mock = MagicMock()
+    textarea_focus_mock = MagicMock()
+    input_field.input_widget.focus = input_focus_mock
+    input_field.textarea_widget.focus = textarea_focus_mock
+
+    # Create mock for the signal and its publish method
+    signal_mock = MagicMock()
+    publish_mock = MagicMock()
+    signal_mock.publish = publish_mock
+    input_field.mutliline_mode_status = signal_mock
+
     return input_field
 
 
@@ -34,7 +44,7 @@ class TestInputField:
         assert input_field.is_multiline_mode is False
         assert input_field.stored_content == ""
         assert hasattr(input_field, "mutliline_mode_status")
-        # Widgets themselves are created in compose() / on_mount(), so not asserted here.
+        # Widgets themselves are created in compose() / on_mount(), so not asserted.
 
     @pytest.mark.parametrize(
         "mutliline_content, expected_singleline_content",
@@ -66,14 +76,14 @@ class TestInputField:
         field_with_mocks.textarea_widget.text = mutliline_content
 
         field_with_mocks.action_toggle_input_mode()
-        field_with_mocks.mutliline_mode_status.publish.assert_called()
+        field_with_mocks.mutliline_mode_status.publish.assert_called()  # type: ignore
 
         # Mutli-line -> single-line
         assert field_with_mocks.input_widget.value == expected_singleline_content
 
         # Single-line -> multi-line
         field_with_mocks.action_toggle_input_mode()
-        field_with_mocks.mutliline_mode_status.publish.assert_called()
+        field_with_mocks.mutliline_mode_status.publish.assert_called()  # type: ignore
 
         # Check original content is preserved
         assert field_with_mocks.textarea_widget.text == mutliline_content
@@ -131,8 +141,9 @@ class TestInputField:
         should_submit: bool,
     ) -> None:
         """
-        Ctrl+J (action_submit_textarea) submits trimmed textarea content in multi-line mode
-        only when non-empty. On submit, textarea is cleared and mode toggle is requested.
+        Ctrl+J (action_submit_textarea) submits trimmed textarea content in
+        multi-line mode only when non-empty. On submit, textarea is cleared and
+        mode toggle is requested.
         """
         field_with_mocks.is_multiline_mode = True
         field_with_mocks.textarea_widget.text = content
@@ -194,11 +205,11 @@ class TestInputField:
         field_with_mocks.focus_input()
 
         if is_multiline:
-            field_with_mocks.textarea_widget.focus.assert_called_once()
-            field_with_mocks.input_widget.focus.assert_not_called()
+            field_with_mocks.textarea_widget.focus.assert_called_once()  # type: ignore
+            field_with_mocks.input_widget.focus.assert_not_called()  # type: ignore
         else:
-            field_with_mocks.input_widget.focus.assert_called_once()
-            field_with_mocks.textarea_widget.focus.assert_not_called()
+            field_with_mocks.input_widget.focus.assert_called_once()  # type: ignore
+            field_with_mocks.textarea_widget.focus.assert_not_called()  # type: ignore
 
     def test_submitted_message_contains_correct_content(self) -> None:
         """Submitted message should store the user content as-is."""
