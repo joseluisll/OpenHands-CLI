@@ -46,8 +46,9 @@ class SettingsScreen(ModalScreen):
         "#memory_condensation_select"
     )
     basic_section: getters.query_one[Select] = getters.query_one("#basic_section")
-    advanced_section = getters.query_one("#advanced_section")
-    message_area = getters.query_one("#message_area")
+    advanced_section: getters.query_one[Container] = getters.query_one(
+        "#advanced_section"
+    )
 
     def __init__(self, is_initial_setup: bool = False, **kwargs):
         """Initialize the settings screen.
