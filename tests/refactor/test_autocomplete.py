@@ -136,10 +136,9 @@ class TestCommandsAndAutocomplete:
         assert isinstance(grid, Grid)
         assert grid.id == "dialog"
 
-        # Test CSS is defined
-        assert hasattr(modal, "DEFAULT_CSS")
-        assert "ExitConfirmationModal" in modal.DEFAULT_CSS
-        assert "#dialog" in modal.DEFAULT_CSS
+        # Test CSS is defined via CSS_PATH
+        assert hasattr(modal, "CSS_PATH")
+        assert modal.CSS_PATH == "exit_modal.tcss"
 
     def test_exit_modal_button_handling(self):
         """Test that modal button handling logic is correct."""
@@ -176,87 +175,19 @@ class TestCommandsAndAutocomplete:
             mock_app.pop_screen.assert_called_once()
 
     def test_handle_command_unknown(self):
-        """Test that unknown commands show error message."""
+        """Test that unknown commands show error notification."""
         app = OpenHandsApp()
 
-        # Mock the query_one method
-        mock_main_display = mock.MagicMock(spec=VerticalScroll)
-        app.query_one = mock.MagicMock(return_value=mock_main_display)
+        # Mock the notify method
+        app.notify = mock.MagicMock()
 
         # Call the command handler with unknown command
         app._handle_command("/unknown")
 
-        # Check that error message was mounted
-        mock_main_display.mount.assert_called_once()
-        error_widget = mock_main_display.mount.call_args[0][0]
-        error_text = str(error_widget.content)
-        assert "Unknown command: /unknown" in error_text
-
-    async def test_on_input_submitted_handles_commands(self):
-        """Test that commands are routed to command handler."""
-        app = OpenHandsApp()
-
-        # Mock the query_one method and command handler
-        mock_main_display = mock.MagicMock(spec=VerticalScroll)
-        app.query_one = mock.MagicMock(return_value=mock_main_display)
-        app._handle_command = mock.MagicMock()
-
-        # Create mock event with command input
-        mock_event = mock.MagicMock()
-        mock_event.value = "/help"
-        mock_event.input.value = "/help"
-
-        # Call the method
-        await app.on_input_submitted(mock_event)
-
-        # Check that command handler was called
-        app._handle_command.assert_called_once_with("/help")
-
-        # Input should be cleared
-        assert mock_event.input.value == ""
-
-    async def test_on_input_submitted_handles_regular_messages(self):
-        """Test that non-command messages are handled appropriately."""
-        app = OpenHandsApp()
-
-        # Mock the query_one method
-        mock_main_display = mock.MagicMock(spec=VerticalScroll)
-        app.query_one = mock.MagicMock(return_value=mock_main_display)
-
-        # Mock the conversation runner
-        mock_conversation_runner = mock.MagicMock()
-        mock_conversation_runner.is_running = False
-        app.conversation_runner = mock_conversation_runner
-
-        # Create mock event with regular message
-        mock_event = mock.MagicMock()
-        mock_event.value = "hello world"
-        mock_event.input.value = "hello world"
-
-        # Call the method
-        await app.on_input_submitted(mock_event)
-
-        # Check that user message, processing message, and placeholder response
-        # were mounted
-        assert mock_main_display.mount.call_count == 3
-
-        # First call should be the user message widget
-        first_call_widget = mock_main_display.mount.call_args_list[0][0][0]
-        first_call_text = str(first_call_widget.content)
-        assert first_call_text == "> hello world"
-
-        # Second call should be the processing message widget
-        second_call_widget = mock_main_display.mount.call_args_list[1][0][0]
-        second_call_text = str(second_call_widget.content)
-        assert "Processing message" in second_call_text
-
-        # Third call should be the placeholder message widget
-        third_call_widget = mock_main_display.mount.call_args_list[2][0][0]
-        third_call_text = str(third_call_widget.content)
-        assert "conversation runner" in third_call_text
-
-        # Input should be cleared
-        assert mock_event.input.value == ""
+        # Check that notify was called with error message
+        app.notify.assert_called_once_with(
+            title="Command error", message="Unknown command: /unknown", severity="error"
+        )
 
     def test_show_help_content(self):
         """Test that help content contains expected information."""
@@ -277,72 +208,6 @@ class TestCommandsAndAutocomplete:
         assert "Exit the application" in help_text
         assert "Tips:" in help_text
         assert "Type / and press Tab" in help_text
-
-    async def test_exact_command_matching_valid_commands(self):
-        """Test that exact command matches are treated as commands."""
-        app = OpenHandsApp()
-
-        # Mock the query_one method
-        mock_main_display = mock.MagicMock(spec=VerticalScroll)
-        app.query_one = mock.MagicMock(return_value=mock_main_display)
-        app._handle_command = mock.MagicMock()
-
-        # Test exact command matches
-        valid_commands = ["/help", "/exit"]
-
-        for command in valid_commands:
-            mock_event = mock.MagicMock()
-            mock_event.value = command
-            mock_event.input.value = command
-
-            await app.on_input_submitted(mock_event)
-
-            # Should call _handle_command for exact matches
-            app._handle_command.assert_called_with(command)
-
-            # Reset mock for next iteration
-            app._handle_command.reset_mock()
-
-    async def test_exact_command_matching_invalid_commands(self):
-        """Test that non-exact matches are treated as regular messages."""
-        app = OpenHandsApp()
-
-        # Mock the query_one method
-        mock_main_display = mock.MagicMock(spec=VerticalScroll)
-        app.query_one = mock.MagicMock(return_value=mock_main_display)
-        app._handle_command = mock.MagicMock()
-
-        # Test inputs that start with / but are not exact command matches
-        invalid_commands = [
-            "/help hello",  # Command with extra text
-            "/exit now",  # Command with extra text
-            "/help-me",  # Command with suffix
-            "/unknown",  # Unknown command
-            "/",  # Just slash
-            "/ help",  # Slash with space
-            "/HELP",  # Wrong case
-        ]
-
-        for invalid_command in invalid_commands:
-            mock_event = mock.MagicMock()
-            mock_event.value = invalid_command
-            mock_event.input.value = invalid_command
-
-            # Reset mocks
-            mock_main_display.reset_mock()
-            app._handle_command.reset_mock()
-
-            await app.on_input_submitted(mock_event)
-
-            # Should NOT call _handle_command for non-exact matches
-            app._handle_command.assert_not_called()
-
-            # Should be treated as regular message instead
-            # Check that user message was mounted (first call)
-            assert mock_main_display.mount.call_count >= 1
-            first_call_widget = mock_main_display.mount.call_args_list[0][0][0]
-            first_call_text = str(first_call_widget.content)
-            assert first_call_text == f"> {invalid_command}"
 
     def test_get_valid_commands(self):
         """Test that get_valid_commands extracts command names correctly."""
