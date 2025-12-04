@@ -1,5 +1,7 @@
 """Exit confirmation modal for OpenHands CLI."""
 
+from typing import Callable
+
 from textual.app import ComposeResult
 from textual.containers import Grid
 from textual.screen import ModalScreen
@@ -11,6 +13,22 @@ class ExitConfirmationModal(ModalScreen):
 
     CSS_PATH = "exit_modal.tcss"
 
+    def __init__(
+        self,
+        on_exit_confirmed: Callable[[], None] | None = None,
+        on_exit_cancelled: Callable[[], None] | None = None,
+        **kwargs,
+    ):
+        """Initialize the exit confirmation modal.
+
+        Args:
+            on_exit_confirmed: Callback to invoke when exit is confirmed
+            on_exit_cancelled: Callback to invoke when exit is cancelled
+        """
+        super().__init__(**kwargs)
+        self.on_exit_confirmed = on_exit_confirmed or (lambda: self.app.exit())
+        self.on_exit_cancelled = on_exit_cancelled or (lambda: self.app.pop_screen())
+
     def compose(self) -> ComposeResult:
         yield Grid(
             Label("Terminate session?", id="question"),
@@ -21,6 +39,10 @@ class ExitConfirmationModal(ModalScreen):
 
     def on_button_pressed(self, event: Button.Pressed) -> None:
         if event.button.id == "yes":
-            self.app.exit()
+            # Dismiss the modal first, then call the callback
+            self.dismiss()
+            self.on_exit_confirmed()
         else:
-            self.app.pop_screen()
+            # Dismiss the modal first, then call the callback
+            self.dismiss()
+            self.on_exit_cancelled()

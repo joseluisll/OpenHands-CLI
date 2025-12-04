@@ -167,8 +167,18 @@ class OpenHandsApp(App):
 
     def _show_initial_settings(self) -> None:
         """Show settings screen for first-time users."""
-        settings_screen = SettingsScreen(is_initial_setup=True)
-        self.push_screen(settings_screen, self._handle_initial_settings_result)
+        settings_screen = SettingsScreen(
+            is_initial_setup=True,
+            on_settings_saved=self._initialize_main_ui,
+            on_settings_cancelled=self._handle_initial_setup_cancelled,
+        )
+        self.push_screen(settings_screen)
+
+    def _handle_initial_setup_cancelled(self) -> None:
+        """Handle when initial setup is cancelled - show settings again."""
+        # For first-time users, cancelling should loop back to settings
+        # This creates the loop until they either save settings or exit
+        self._show_initial_settings()
 
     def action_open_settings(self, is_inital_setup: bool = False) -> None:
         """Action to open the settings screen."""
@@ -182,18 +192,13 @@ class OpenHandsApp(App):
             )
             return
 
-        # Open the settings screen
-        settings_screen = SettingsScreen(is_inital_setup=is_inital_setup)
-        self.push_screen(settings_screen, settings_screen._handle_settings_result)
-
-    def _handle_initial_settings_result(self, result) -> None:
-        """Handle the result from the initial settings screen."""
-        if result:
-            # Settings were saved successfully - initialize main UI
-            self._initialize_main_ui()
-        else:
-            # Settings were cancelled and no existing settings exist - show exit modal
-            self.push_screen(ExitConfirmationModal())
+        # Open the settings screen for existing users
+        settings_screen = SettingsScreen(
+            is_initial_setup=is_inital_setup,
+            on_settings_saved=lambda: None,  # Just close, no special action needed
+            on_settings_cancelled=lambda: None,  # Just close, return to main UI
+        )
+        self.push_screen(settings_screen)
 
     def _initialize_main_ui(self) -> None:
         """Initialize the main UI components."""
