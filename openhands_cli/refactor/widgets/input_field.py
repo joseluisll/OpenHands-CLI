@@ -140,13 +140,6 @@ class InputField(Container):
         else:
             return self.input_widget.value
 
-    def clear(self) -> None:
-        """Clear the current input."""
-        if self.is_multiline_mode:
-            self.textarea_widget.text = ""
-        else:
-            self.input_widget.value = ""
-
     def focus_input(self) -> None:
         """Focus the appropriate input widget."""
         if self.is_multiline_mode:
