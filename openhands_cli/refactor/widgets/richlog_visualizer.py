@@ -4,6 +4,7 @@ This replaces the Rich-based CLIVisualizer with a Textual-compatible version.
 """
 
 import threading
+from datetime import datetime
 from typing import TYPE_CHECKING
 
 from openhands.sdk.conversation.visualizer.base import ConversationVisualizerBase
@@ -67,19 +68,21 @@ class TextualVisualizer(ConversationVisualizerBase):
         container: "VerticalScroll",
         app: "OpenHandsApp",
         skip_user_messages: bool = False,
+        show_timestamps: bool = True,
     ):
         """Initialize the visualizer.
 
         Args:
             container: The Textual VerticalScroll container to add widgets to
             app: The Textual app instance for thread-safe UI updates
-            highlight_regex: Dictionary mapping regex patterns to Rich color styles
             skip_user_messages: If True, skip displaying user messages
+            show_timestamps: If True, add timestamps to event titles
         """
         super().__init__()
         self._container = container
         self._app = app
         self._skip_user_messages = skip_user_messages
+        self._show_timestamps = show_timestamps
         # Store the main thread ID for thread safety checks
         self._main_thread_id = threading.get_ident()
 
@@ -101,6 +104,13 @@ class TextualVisualizer(ConversationVisualizerBase):
         self._container.mount(widget)
         # Automatically scroll to the bottom to show the newly added widget
         self._container.scroll_end(animate=False)
+
+    def _add_timestamp_prefix(self, title: str) -> str:
+        """Add timestamp prefix to title if enabled."""
+        if not self._show_timestamps:
+            return title
+        timestamp = datetime.now().strftime("%H:%M:%S")
+        return f"[dim]{timestamp}[/dim] {title}"
 
     def _escape_rich_markup(self, text: str) -> str:
         """Escape Rich markup characters in text to prevent markup errors."""
@@ -240,7 +250,7 @@ class TextualVisualizer(ConversationVisualizerBase):
 
             return NonClickableCollapsible(
                 content_string,
-                title=title,
+                title=self._add_timestamp_prefix(title),
                 collapsed=True,  # Start collapsed by default
                 border_color=_get_event_border_color(event),
             )
@@ -248,7 +258,7 @@ class TextualVisualizer(ConversationVisualizerBase):
             title = self._extract_meaningful_title(event, "Observation")
             return NonClickableCollapsible(
                 str(content),
-                title=title,
+                title=self._add_timestamp_prefix(title),
                 collapsed=True,  # Start collapsed for observations
                 border_color=_get_event_border_color(event),
             )
@@ -256,7 +266,7 @@ class TextualVisualizer(ConversationVisualizerBase):
             title = self._extract_meaningful_title(event, "User Rejected Action")
             return NonClickableCollapsible(
                 str(content),
-                title=title,
+                title=self._add_timestamp_prefix(title),
                 collapsed=True,  # Start collapsed by default
                 border_color=_get_event_border_color(event),
             )
@@ -282,7 +292,7 @@ class TextualVisualizer(ConversationVisualizerBase):
 
             return NonClickableCollapsible(
                 content_string,
-                title=title,
+                title=self._add_timestamp_prefix(title),
                 collapsed=True,  # Start collapsed by default
                 border_color=_get_event_border_color(event),
             )
@@ -295,7 +305,7 @@ class TextualVisualizer(ConversationVisualizerBase):
 
             return NonClickableCollapsible(
                 content_string,
-                title=title,
+                title=self._add_timestamp_prefix(title),
                 collapsed=True,  # Start collapsed by default
                 border_color=_get_event_border_color(event),
             )
@@ -303,7 +313,7 @@ class TextualVisualizer(ConversationVisualizerBase):
             title = self._extract_meaningful_title(event, "User Paused")
             return NonClickableCollapsible(
                 str(content),
-                title=title,
+                title=self._add_timestamp_prefix(title),
                 collapsed=True,  # Start collapsed for pauses
                 border_color=_get_event_border_color(event),
             )
@@ -316,7 +326,7 @@ class TextualVisualizer(ConversationVisualizerBase):
 
             return NonClickableCollapsible(
                 content_string,
-                title=title,
+                title=self._add_timestamp_prefix(title),
                 collapsed=True,  # Start collapsed for condensations
                 border_color=_get_event_border_color(event),
             )
@@ -328,13 +338,13 @@ class TextualVisualizer(ConversationVisualizerBase):
             content_string = f"{content}\n\nSource: {event.source}"
             return NonClickableCollapsible(
                 content_string,
-                title=title,
+                title=self._add_timestamp_prefix(title),
                 collapsed=True,  # Start collapsed for unknown events
                 border_color=_get_event_border_color(event),
             )
 
     def _format_metrics_subtitle(self) -> str | None:
-        """Format LLM metrics as a visually appealing subtitle string."""
+        """Format LLM metrics as a visually appealing subtitle string with icons."""
         stats = self.conversation_stats
         if not stats:
             return None
@@ -365,19 +375,26 @@ class TextualVisualizer(ConversationVisualizerBase):
         # Cache hit rate (prompt + cache)
         prompt = usage.prompt_tokens or 0
         cache_read = usage.cache_read_tokens or 0
-        cache_rate = f"{(cache_read / prompt * 100):.2f}%" if prompt > 0 else "N/A"
+        cache_rate = f"{(cache_read / prompt * 100):.2f}%" if prompt > 0 else "0.00%"
         reasoning_tokens = usage.reasoning_tokens or 0
 
-        # Cost
-        cost_str = f"{cost:.4f}" if cost > 0 else "0.00"
+        # Cost - highlight high costs
+        cost_str = f"{cost:.4f}" if cost > 0 else "0.0000"
+        cost_color = "yellow" if cost > 0.1 else "green"
 
-        # Build with fixed color scheme
+        # Color code cache rate - green for good hit rates
+        cache_pct = (cache_read / prompt * 100) if prompt > 0 else 0
+        cache_color = (
+            "green" if cache_pct > 50 else "yellow" if cache_pct > 20 else "dim"
+        )
+
+        # Build with enhanced formatting and icons
         parts: list[str] = []
-        parts.append(f"[cyan]↑ input {input_tokens}[/cyan]")
-        parts.append(f"[magenta]cache hit {cache_rate}[/magenta]")
+        parts.append(f"[cyan]📥 {input_tokens}[/cyan]")
+        parts.append(f"[{cache_color}]🎯 {cache_rate}[/{cache_color}]")
         if reasoning_tokens > 0:
-            parts.append(f"[yellow] reasoning {abbr(reasoning_tokens)}[/yellow]")
-        parts.append(f"[blue]↓ output {output_tokens}[/blue]")
-        parts.append(f"[green]$ {cost_str}[/green]")
+            parts.append(f"[magenta]🧠 {abbr(reasoning_tokens)}[/magenta]")
+        parts.append(f"[blue]📤 {output_tokens}[/blue]")
+        parts.append(f"[{cost_color}]💰 ${cost_str}[/{cost_color}]")
 
-        return "Tokens: " + " • ".join(parts)
+        return "📊 " + " • ".join(parts)
