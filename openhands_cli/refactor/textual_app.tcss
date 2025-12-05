@@ -13,6 +13,8 @@ Screen {
     margin: 1 1 0 1;
     background: $background;
     color: $foreground;
+    overflow-y: auto;
+    scrollbar-size-vertical: 1;
 }
 
 #splash_content {
@@ -23,6 +25,8 @@ Screen {
 
 .user-message {
     padding: 0 1;
+    margin-top: 1;
+    margin-bottom: 1;
     background: $background;
     color: $primary;
 }
@@ -34,7 +38,7 @@ Screen {
 }
 
 #input_area {
-    height: 9;
+    height: 7;
     dock: bottom;
     background: $background;
     padding: 1;
@@ -66,23 +70,19 @@ Footer {
 .status-panel {
     width: auto;
     height: auto;
-    border: solid $primary;
-    background: $surface;
-    padding: 1;
-    text-align: center;
-    margin: 1 0;
-    border-title-align: center;
+    background: transparent;
+    padding: 0 1;
+    text-align: left;
+    margin: 0;
 }
 
 .conversation-panel {
     width: auto;
     height: auto;
-    border: solid $secondary;
-    background: $surface;
-    padding: 1;
-    text-align: center;
-    margin: 1 0;
-    border-title-align: center;
+    background: transparent;
+    padding: 0 1;
+    text-align: left;
+    margin: 0;
 }
 
 .splash-instruction {

@@ -43,7 +43,8 @@ from openhands_cli.refactor.widgets.non_clickable_collapsible import (
 )
 from openhands_cli.refactor.widgets.richlog_visualizer import TextualVisualizer
 from openhands_cli.refactor.widgets.status_line import (
-    StatusLine,
+    InfoStatusLine,
+    WorkingStatusLine,
 )
 from openhands_cli.user_actions.types import UserConfirmation
 
@@ -58,6 +59,8 @@ class OpenHandsApp(App):
         ("ctrl+j", "submit_textarea", "Submit multi-line input"),
         ("escape", "pause_conversation", "Pause the conversation"),
         ("ctrl+q", "request_quit", "Quit the application"),
+        ("ctrl+c", "request_quit", "Quit the application"),
+        ("ctrl+d", "request_quit", "Quit the application"),
     ]
 
     input_field: getters.query_one[InputField] = getters.query_one(InputField)
@@ -139,11 +142,12 @@ class OpenHandsApp(App):
 
             # Input area - docked to bottom
             with Container(id="input_area"):
+                yield WorkingStatusLine(self)
                 yield InputField(
                     placeholder="Type your message, @mention a file, or / for commands"
                 )
 
-                yield StatusLine(self)
+                yield InfoStatusLine(self)
 
         # Footer - shows available key bindings
         yield Footer()
@@ -243,7 +247,8 @@ class OpenHandsApp(App):
 
     def create_conversation_runner(self) -> ConversationRunner:
         # Initialize conversation runner with visualizer that can add widgets
-        visualizer = TextualVisualizer(self.main_display, self)
+        # Skip user messages since we display them immediately in the UI
+        visualizer = TextualVisualizer(self.main_display, self, skip_user_messages=True)
 
         return ConversationRunner(
             self.conversation_id,
@@ -285,8 +290,10 @@ class OpenHandsApp(App):
 
         # Add the user message to the main display as a Static widget
         user_message_widget = Static(f"> {content}", classes="user-message")
-        self.main_display.mount(user_message_widget)
+        await self.main_display.mount(user_message_widget)
         self.main_display.scroll_end(animate=False)
+        # Force immediate refresh to show the message without delay
+        self.refresh()
 
         # Handle commands - only exact matches
         if is_valid_command(content):
