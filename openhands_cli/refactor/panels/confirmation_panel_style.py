@@ -1,5 +1,6 @@
 CONFIRMATION_SIDE_PANEL_STYLLE = """
 ConfirmationSidePanel {
+    split: right;
     width: 33%;
     height: 100%;
     border-left: vkey $foreground 30%;
@@ -36,7 +37,6 @@ ConfirmationSidePanel {
 
 .confirmation-options {
     height: auto;
-    max-height: 8;
     border: solid $secondary;
     background: $background;
 }
