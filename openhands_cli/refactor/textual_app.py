@@ -249,16 +249,9 @@ class OpenHandsApp(App):
 
     def _on_conversation_state_changed(self, is_running: bool) -> None:
         """Update visual feedback based on conversation state."""
-        display = self.main_display
         if is_running:
-            display.add_class("conversation-running")
-            display.remove_class("conversation-paused")
-            display.remove_class("conversation-error")
-            display.border_title = "Agent is working..."
             self._add_working_indicator()
         else:
-            display.remove_class("conversation-running")
-            display.border_title = None
             self._remove_working_indicator()
 
     def _add_working_indicator(self) -> None:
@@ -317,7 +310,9 @@ class OpenHandsApp(App):
 
     def create_conversation_runner(self) -> ConversationRunner:
         # Initialize conversation runner with visualizer that can add widgets
-        visualizer = TextualVisualizer(self.main_display, self)
+        visualizer = TextualVisualizer(
+            self.main_display, self, show_timestamps=False, collapsed=False
+        )
 
         return ConversationRunner(
             self.conversation_id,

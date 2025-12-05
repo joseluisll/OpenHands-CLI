@@ -22,12 +22,6 @@ Screen {
     scrollbar-color-active: $secondary;
 }
 
-#main_display.conversation-running {
-    border: thick $accent;
-    border-title-color: $accent;
-    border-title-style: bold;
-}
-
 #main_display.conversation-paused {
     border: thick $warning;
     border-title-color: $warning;

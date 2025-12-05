@@ -69,6 +69,7 @@ class TextualVisualizer(ConversationVisualizerBase):
         app: "OpenHandsApp",
         skip_user_messages: bool = False,
         show_timestamps: bool = True,
+        collapsed: bool = True,
     ):
         """Initialize the visualizer.
 
@@ -77,12 +78,14 @@ class TextualVisualizer(ConversationVisualizerBase):
             app: The Textual app instance for thread-safe UI updates
             skip_user_messages: If True, skip displaying user messages
             show_timestamps: If True, add timestamps to event titles
+            collapsed: If True, start cells in collapsed state by default
         """
         super().__init__()
         self._container = container
         self._app = app
         self._skip_user_messages = skip_user_messages
         self._show_timestamps = show_timestamps
+        self._collapsed = collapsed
         # Store the main thread ID for thread safety checks
         self._main_thread_id = threading.get_ident()
 
@@ -251,7 +254,7 @@ class TextualVisualizer(ConversationVisualizerBase):
             return NonClickableCollapsible(
                 content_string,
                 title=self._add_timestamp_prefix(title),
-                collapsed=True,  # Start collapsed by default
+                collapsed=self._collapsed,
                 border_color=_get_event_border_color(event),
             )
         elif isinstance(event, ObservationEvent):
@@ -259,7 +262,7 @@ class TextualVisualizer(ConversationVisualizerBase):
             return NonClickableCollapsible(
                 str(content),
                 title=self._add_timestamp_prefix(title),
-                collapsed=True,  # Start collapsed for observations
+                collapsed=self._collapsed,
                 border_color=_get_event_border_color(event),
             )
         elif isinstance(event, UserRejectObservation):
@@ -267,7 +270,7 @@ class TextualVisualizer(ConversationVisualizerBase):
             return NonClickableCollapsible(
                 str(content),
                 title=self._add_timestamp_prefix(title),
-                collapsed=True,  # Start collapsed by default
+                collapsed=self._collapsed,
                 border_color=_get_event_border_color(event),
             )
         elif isinstance(event, MessageEvent):
@@ -293,7 +296,7 @@ class TextualVisualizer(ConversationVisualizerBase):
             return NonClickableCollapsible(
                 content_string,
                 title=self._add_timestamp_prefix(title),
-                collapsed=True,  # Start collapsed by default
+                collapsed=self._collapsed,
                 border_color=_get_event_border_color(event),
             )
         elif isinstance(event, AgentErrorEvent):
@@ -306,7 +309,7 @@ class TextualVisualizer(ConversationVisualizerBase):
             return NonClickableCollapsible(
                 content_string,
                 title=self._add_timestamp_prefix(title),
-                collapsed=True,  # Start collapsed by default
+                collapsed=self._collapsed,
                 border_color=_get_event_border_color(event),
             )
         elif isinstance(event, PauseEvent):
@@ -314,7 +317,7 @@ class TextualVisualizer(ConversationVisualizerBase):
             return NonClickableCollapsible(
                 str(content),
                 title=self._add_timestamp_prefix(title),
-                collapsed=True,  # Start collapsed for pauses
+                collapsed=self._collapsed,
                 border_color=_get_event_border_color(event),
             )
         elif isinstance(event, Condensation):
@@ -327,7 +330,7 @@ class TextualVisualizer(ConversationVisualizerBase):
             return NonClickableCollapsible(
                 content_string,
                 title=self._add_timestamp_prefix(title),
-                collapsed=True,  # Start collapsed for condensations
+                collapsed=self._collapsed,
                 border_color=_get_event_border_color(event),
             )
         else:
@@ -339,7 +342,7 @@ class TextualVisualizer(ConversationVisualizerBase):
             return NonClickableCollapsible(
                 content_string,
                 title=self._add_timestamp_prefix(title),
-                collapsed=True,  # Start collapsed for unknown events
+                collapsed=self._collapsed,
                 border_color=_get_event_border_color(event),
             )
 
