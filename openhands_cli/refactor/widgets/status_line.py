@@ -33,7 +33,7 @@ class StatusLine(Static):
         self._timer: Timer | None = None
 
         self.main_app = app
-        self.mode_indicator = " [F1 for multi-line]"
+        self.mode_indicator = " [Ctrl+L for multi-line]"
         self.work_dir_display = self._get_work_dir_display()
 
     def on_mount(self) -> None:
@@ -56,7 +56,7 @@ class StatusLine(Static):
         if is_multiline_mode:
             self.mode_indicator = " [Multi-line: Ctrl+J to submit]"
         else:
-            self.mode_indicator = " [F1 for multi-line]"
+            self.mode_indicator = " [Ctrl+L for multi-line]"
         self._update_text()
 
     def _on_conversation_state_changed(self, is_running: bool) -> None:
@@ -97,7 +97,7 @@ class StatusLine(Static):
         if not self._conversation_start_time:
             return ""
         elapsed = int(time.time() - self._conversation_start_time)
-        return f" ✦ (esc to cancel • {elapsed}s , F2 to show details)"
+        return f" ✦ (esc to cancel • {elapsed}s , Ctrl+O to show details)"
 
     def _update_text(self) -> None:
         """Rebuild the full status line text."""

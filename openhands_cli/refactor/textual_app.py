@@ -51,8 +51,8 @@ class OpenHandsApp(App):
 
     # Key bindings
     BINDINGS: ClassVar = [
-        ("f1", "toggle_input_mode", "Toggle single/multi-line input"),
-        ("f2", "expand_all", "Expand the cells"),
+        ("ctrl+l", "toggle_input_mode", "Toggle single/multi-line input"),
+        ("ctrl+o", "expand_all", "Expand the cells"),
         ("ctrl+j", "submit_textarea", "Submit multi-line input"),
         ("escape", "pause_conversation", "Pause the conversation"),
         ("ctrl+q", "request_quit", "Quit the application"),
