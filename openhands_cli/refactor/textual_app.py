@@ -265,8 +265,22 @@ class OpenHandsApp(App):
             return
 
         # Open the settings screen for existing users
-        settings_screen = SettingsScreen()
+        settings_screen = SettingsScreen(on_settings_saved=self._on_settings_updated)
         self.push_screen(settings_screen)
+
+    def _on_settings_updated(self) -> None:
+        """Handle when settings are updated - reload conversation runner."""
+        if not self.conversation_runner:
+            return
+
+        # Get the current confirmation policy
+        current_confirmation_policy = self.conversation_runner.get_confirmation_policy()
+
+        # Create a new conversation runner with updated settings
+        self.conversation_runner = self.create_conversation_runner()
+
+        # Restore the confirmation policy from the previous runner
+        self.conversation_runner.set_confirmation_policy(current_confirmation_policy)
 
     def _initialize_main_ui(self) -> None:
         """Initialize the main UI components."""
