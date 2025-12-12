@@ -119,8 +119,8 @@ class TestMCPErrorHandling:
                 initial_confirmation_policy=initial_confirmation_policy,
             )
 
-        # The notification callback should not be called since the error happens during setup_conversation
-        # and ConversationRunner.__init__ doesn't handle MCPSetupError
+        # The notification callback should not be called since the error happens during
+        # setup_conversation and ConversationRunner.__init__ doesn't handle it
         notification_callback.assert_not_called()
 
     def test_mcp_config_validation_error(self, temp_config_path):
