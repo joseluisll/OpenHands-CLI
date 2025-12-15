@@ -61,6 +61,10 @@ a = Analysis(
         'openhands.tools.terminal',
         'openhands.tools.str_replace_editor',
         'openhands.tools.task_tracker',
+        # Windows-specific imports to help with DLL loading
+        'ctypes',
+        'ctypes.util',
+        '_ctypes',
     ],
     hookspath=[],
     hooksconfig={},
@@ -101,7 +105,7 @@ exe = EXE(
     name='openhands',
     debug=False,
     bootloader_ignore_signals=False,
-    strip=True,  # Strip debug symbols to reduce size
+    strip=False if sys.platform == "win32" else True,  # Don't strip on Windows to avoid DLL issues
     upx=False if sys.platform == "win32" else True,  # Disable UPX on Windows to avoid DLL loading issues
     upx_exclude=[],
     runtime_tmpdir=None,
