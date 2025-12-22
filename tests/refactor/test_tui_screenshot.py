@@ -2,7 +2,7 @@
 Proof-of-concept tests for TUI screenshot testing.
 
 This module demonstrates how to test the textual UI by:
-1. Running the app in headless mode using Textual's run_test() 
+1. Running the app in headless mode using Textual's run_test()
 2. Interacting with the UI via the Pilot API (like Playwright for terminals)
 3. Taking SVG screenshots that can be viewed/compared
 
@@ -12,10 +12,9 @@ The approach uses Textual's built-in testing framework which provides:
 - Headless mode: No actual terminal needed for testing
 """
 
-import os
 import tempfile
+from collections.abc import Generator
 from pathlib import Path
-from unittest.mock import patch
 
 import pytest
 
@@ -27,7 +26,7 @@ class TestTUIScreenshots:
     """Tests demonstrating TUI screenshot capabilities."""
 
     @pytest.fixture
-    def screenshot_dir(self) -> Path:
+    def screenshot_dir(self) -> Generator[Path, None, None]:
         """Create a temporary directory for screenshots."""
         with tempfile.TemporaryDirectory() as tmpdir:
             yield Path(tmpdir)
@@ -40,7 +39,7 @@ class TestTUIScreenshots:
     ) -> None:
         """
         Test that we can capture a screenshot of the initial UI state.
-        
+
         This demonstrates:
         1. Running the app in test mode
         2. Capturing an SVG screenshot
@@ -83,7 +82,7 @@ class TestTUIScreenshots:
     ) -> None:
         """
         Test UI state after typing a message in the input field.
-        
+
         This demonstrates using the Pilot API to simulate user input.
         """
         monkeypatch.setattr(
@@ -118,7 +117,7 @@ class TestTUIScreenshots:
     ) -> None:
         """
         Test UI state after executing the /help command.
-        
+
         This demonstrates:
         1. Typing a command
         2. Pressing Enter to submit
@@ -163,7 +162,7 @@ class TestTUIScreenshots:
     ) -> None:
         """
         Test UI rendering at different terminal sizes.
-        
+
         This demonstrates testing responsive behavior.
         """
         monkeypatch.setattr(
@@ -173,9 +172,9 @@ class TestTUIScreenshots:
         )
 
         sizes = [
-            (80, 24),   # Standard terminal
+            (80, 24),  # Standard terminal
             (120, 40),  # Large terminal
-            (60, 20),   # Small terminal
+            (60, 20),  # Small terminal
         ]
 
         for width, height in sizes:
@@ -204,7 +203,7 @@ class TestTUIInteractions:
     ) -> None:
         """
         Test keyboard navigation through the UI.
-        
+
         The Pilot API allows simulating:
         - Key presses (pilot.press)
         - Mouse clicks (pilot.click)
@@ -269,7 +268,7 @@ class TestTUIInteractions:
 class TestTUIWithPersistentScreenshots:
     """
     Tests that save screenshots to a persistent location for manual review.
-    
+
     These tests save screenshots to /tmp/tui_screenshots/ so they can be
     viewed after the test run.
     """
@@ -289,7 +288,7 @@ class TestTUIWithPersistentScreenshots:
     ) -> None:
         """
         Capture a full UI flow with multiple screenshots.
-        
+
         Screenshots are saved to /tmp/tui_screenshots/ for manual review.
         """
         monkeypatch.setattr(
