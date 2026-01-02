@@ -18,7 +18,7 @@ from unittest.mock import patch
 
 import pytest
 from textual.app import App, ComposeResult
-from textual.widgets import Button, Footer, Static
+from textual.widgets import Footer, Static
 
 from openhands_cli.tui.modals.exit_modal import ExitConfirmationModal
 from openhands_cli.tui.widgets.input_field import InputField
@@ -133,41 +133,6 @@ class TestInputFieldSnapshots:
             terminal_size=(80, 24),
             run_before=type_text,
         )
-
-
-class TestSimpleWidgetSnapshots:
-    """Snapshot tests for simple, isolated widgets."""
-
-    def test_simple_button_grid(self, snap_compare):
-        """Snapshot test for a simple button grid layout."""
-
-        class ButtonGridApp(App):
-            CSS = """
-            Screen {
-                align: center middle;
-            }
-            #button-grid {
-                grid-size: 2;
-                width: auto;
-                height: auto;
-                padding: 1;
-            }
-            Button {
-                width: 16;
-            }
-            """
-
-            def compose(self) -> ComposeResult:
-                from textual.containers import Grid
-
-                with Grid(id="button-grid"):
-                    yield Button("Action 1", id="action1")
-                    yield Button("Action 2", id="action2")
-                    yield Button("Cancel", variant="error", id="cancel")
-                    yield Button("Confirm", variant="success", id="confirm")
-                yield Footer()
-
-        assert snap_compare(ButtonGridApp(), terminal_size=(60, 20))
 
 
 class TestOpenHandsAppSnapshots:

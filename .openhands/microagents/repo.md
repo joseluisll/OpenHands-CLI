@@ -140,7 +140,6 @@ To view the generated SVG snapshots in a browser:
 | `TestExitModalSnapshots` | `test_exit_modal_with_focus_on_yes` | Exit modal with focus on Yes button |
 | `TestInputFieldSnapshots` | `test_input_field_single_line_mode` | Input field in default state |
 | `TestInputFieldSnapshots` | `test_input_field_with_text` | Input field with typed text |
-| `TestSimpleWidgetSnapshots` | `test_simple_button_grid` | Button grid layout |
 | `TestOpenHandsAppSnapshots` | `test_openhands_app_splash_screen` | Main app splash screen (mocked) |
 | `TestConfirmationModalSnapshots` | `test_confirmation_settings_modal` | Confirmation settings modal |
 
@@ -150,62 +149,3 @@ To view the generated SVG snapshots in a browser:
 2. **Use fixed terminal sizes** - Always specify `terminal_size=(width, height)` for consistent results
 3. **Commit snapshots to git** - SVG files are test artifacts and should be version controlled
 4. **Review snapshot diffs carefully** - When tests fail, examine the visual diff to determine if the change is intentional
-
-## Integration Testing with Real LLM
-
-The CLI includes integration tests that can communicate with a real LLM service. These tests are marked with `@pytest.mark.integration` and require credentials to run.
-
-### Environment Variables
-
-| Variable | Required | Default | Description |
-|----------|----------|---------|-------------|
-| `LLM_API_KEY` | Yes | - | API key for authentication |
-| `LLM_BASE_URL` | No | `https://llm-proxy.eval.all-hands.dev` | LLM service base URL |
-| `LLM_MODEL` | No | `litellm_proxy/claude-haiku-4-5-20251001` | Model name |
-
-### Running Integration Tests
-
-```bash
-# Run integration tests with real LLM
-LLM_API_KEY=$LLM_API_KEY uv run pytest tests/integration/ -v
-
-# Run only non-integration tests (skip real LLM tests)
-uv run pytest -m "not integration"
-```
-
-### Test Fixtures
-
-The `conftest.py` provides fixtures for integration testing:
-
-- `real_agent_config` - Returns LLM config dict or None if `LLM_API_KEY` not set
-- `setup_real_agent_settings` - Creates temp agent_settings.json with real credentials
-
-### Example Integration Test
-
-```python
-@pytest.mark.integration
-def test_conversation_with_real_llm(real_agent_config, tmp_path):
-    if real_agent_config is None:
-        pytest.skip("LLM_API_KEY not set")
-    
-    from openhands.sdk import LLM, Agent, Conversation, Workspace
-    from openhands.sdk.security.confirmation_policy import NeverConfirm
-    
-    llm = LLM(
-        model=real_agent_config["model"],
-        api_key=SecretStr(real_agent_config["api_key"]),
-        base_url=real_agent_config["base_url"],
-    )
-    
-    agent = Agent(llm=llm, tools=[], mcp_config={})
-    conversation = Conversation(
-        agent=agent,
-        workspace=Workspace(working_dir=str(tmp_path)),
-    )
-    conversation.set_confirmation_policy(NeverConfirm())
-    conversation.send_message("hi")
-    conversation.run()
-    
-    # Assert on events
-    assert len(conversation.state.events) > 0
-```
