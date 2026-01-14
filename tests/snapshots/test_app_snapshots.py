@@ -23,6 +23,7 @@ from textual.widgets import Footer, Static
 from openhands.tools.task_tracker.definition import TaskItem
 from openhands_cli.tui.modals.exit_modal import ExitConfirmationModal
 from openhands_cli.tui.panels.plan_side_panel import PlanSidePanel
+from openhands_cli.tui.panels.right_side_panel import RightSidePanel
 
 
 if TYPE_CHECKING:
@@ -166,4 +167,87 @@ class TestPlanSidePanelSnapshots:
 
         assert snap_compare(
             PlanPanelAllDoneApp(tasks=task_list), terminal_size=(100, 30)
+        )
+
+
+class TestRightSidePanelSnapshots:
+    """Snapshot tests for the RightSidePanel (contains Plan and Ask Agent panels)."""
+
+    def test_right_side_panel_empty_state(self, snap_compare):
+        """Snapshot test for right side panel with no tasks and empty ask agent."""
+
+        class RightSidePanelTestApp(App):
+            CSS = """
+            Screen {
+                layout: horizontal;
+            }
+            #main_content {
+                width: 2fr;
+            }
+            """
+
+            def __init__(self, **kwargs):
+                super().__init__(**kwargs)
+                self.conversation_dir = ""
+                self.conversation_runner = None
+                self.right_side_panel: RightSidePanel | None = None
+
+            def compose(self) -> ComposeResult:
+                with Horizontal(id="content_area"):
+                    yield Static("Main content area", id="main_content")
+                yield Footer()
+
+            def on_mount(self) -> None:
+                self.right_side_panel = RightSidePanel(self)  # type: ignore[arg-type]
+                # Toggle to show the panel
+                self.right_side_panel.toggle()
+
+        assert snap_compare(RightSidePanelTestApp(), terminal_size=(120, 40))
+
+    def test_right_side_panel_with_tasks(self, snap_compare):
+        """Snapshot test for right side panel with tasks in plan panel."""
+        task_list = [
+            TaskItem(title="Analyze codebase structure", notes="", status="done"),
+            TaskItem(title="Implement feature X", notes="", status="in_progress"),
+            TaskItem(
+                title="Write unit tests",
+                notes="Focus on edge cases",
+                status="todo",
+            ),
+            TaskItem(title="Update documentation", notes="", status="todo"),
+        ]
+
+        class RightSidePanelWithTasksApp(App):
+            CSS = """
+            Screen {
+                layout: horizontal;
+            }
+            #main_content {
+                width: 2fr;
+            }
+            """
+
+            def __init__(self, tasks: list[TaskItem], **kwargs):
+                super().__init__(**kwargs)
+                self.conversation_dir = ""
+                self.conversation_runner = None
+                self.right_side_panel: RightSidePanel | None = None
+                self._tasks = tasks
+
+            def compose(self) -> ComposeResult:
+                with Horizontal(id="content_area"):
+                    yield Static("Main content area", id="main_content")
+                yield Footer()
+
+            def on_mount(self) -> None:
+                self.right_side_panel = RightSidePanel(self)  # type: ignore[arg-type]
+                # Toggle to show the panel
+                self.right_side_panel.toggle()
+                # Set tasks on the plan panel
+                if self.right_side_panel.plan_panel:
+                    self.right_side_panel.plan_panel._task_list = self._tasks
+                    self.right_side_panel.plan_panel._refresh_content()
+
+        assert snap_compare(
+            RightSidePanelWithTasksApp(tasks=task_list), terminal_size=(120, 40)
         )
