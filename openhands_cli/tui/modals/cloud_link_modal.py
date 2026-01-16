@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import asyncio
-import webbrowser
 from collections.abc import Callable
 
 from textual.app import ComposeResult
@@ -11,9 +10,7 @@ from textual.containers import Grid, Vertical
 from textual.screen import ModalScreen
 from textual.widgets import Button, Checkbox, Label, Static
 
-from openhands_cli.auth.api_client import ApiClientError, OpenHandsApiClient
-from openhands_cli.auth.device_flow import DeviceFlowClient, DeviceFlowError
-from openhands_cli.auth.token_storage import TokenStorage
+from openhands_cli.auth.login_command import login_command
 
 
 class CloudLinkModal(ModalScreen):
@@ -152,17 +149,17 @@ class CloudLinkModal(ModalScreen):
         status_message = self.query_one("#status_message", Static)
 
         try:
-            token_storage = TokenStorage()
-            api_key = token_storage.get_api_key()
+            # Use login_command with sync_settings=True to force sync
+            success = await login_command(
+                self.cloud_url, sync_settings=True, silent=True
+            )
 
-            if not api_key:
-                status_message.update("Error: No API key found. Please re-link.")
+            if success:
+                status_message.update("Settings synced successfully!")
+                self._on_resync_success()
+            else:
+                status_message.update("Failed to sync settings.")
                 self._on_resync_failure()
-                return
-
-            await self._sync_settings(api_key)
-            status_message.update("Settings synced successfully!")
-            self._on_resync_success()
 
         except Exception as e:
             status_message.update(f"Error syncing settings: {e}")
@@ -192,100 +189,24 @@ class CloudLinkModal(ModalScreen):
         override_settings = override_checkbox.value
 
         try:
-            # Check if already have a token
-            token_storage = TokenStorage()
-            existing_api_key = token_storage.get_api_key()
+            status_message.update("Opening browser for authentication...")
 
-            if existing_api_key:
-                # Already have a token, just sync settings if requested
-                status_message.update("Already authenticated. Syncing settings...")
-                if override_settings:
-                    await self._sync_settings(existing_api_key)
+            # Use login_command which handles the device flow and browser opening
+            # sync_settings: True if checkbox is checked, False otherwise
+            success = await login_command(
+                self.cloud_url, sync_settings=override_settings, silent=True
+            )
+
+            if success:
+                status_message.update("Authentication successful!")
                 self._on_success()
-                return
-
-            # Start device flow authentication
-            client = DeviceFlowClient(self.cloud_url)
-
-            status_message.update("Starting authentication...")
-            device_code, user_code, verification_uri, interval = (
-                await client.start_device_flow()
-            )
-
-            # Build verification URL
-            if "user_code=" in verification_uri:
-                verification_url = verification_uri
             else:
-                verification_url = f"{verification_uri}?user_code={user_code}"
-
-            # Open browser
-            status_message.update(
-                f"Opening browser...\nIf browser doesn't open, visit:\n{verification_url}"
-            )
-
-            try:
-                webbrowser.open(verification_url)
-            except Exception:
-                pass  # Browser opening is best-effort
-
-            status_message.update("Waiting for authentication in browser...")
-
-            # Poll for token
-            tokens = await client.poll_for_token(device_code, interval)
-            api_key = tokens.get("access_token")
-
-            if not api_key:
-                status_message.update("Authentication failed: No access token received")
+                status_message.update("Authentication failed.")
                 self._on_failure()
-                return
 
-            # Store the API key
-            token_storage.store_api_key(api_key)
-
-            status_message.update("Authentication successful!")
-
-            # Sync settings if requested
-            if override_settings:
-                status_message.update("Syncing settings from cloud...")
-                await self._sync_settings(api_key)
-
-            self._on_success()
-
-        except DeviceFlowError as e:
-            status_message.update(f"Authentication failed: {e}")
-            self._on_failure()
         except Exception as e:
             status_message.update(f"Error: {e}")
             self._on_failure()
-
-    async def _sync_settings(self, api_key: str) -> None:
-        """Sync settings from cloud."""
-        client = OpenHandsApiClient(self.cloud_url, api_key)
-
-        try:
-            # Get LLM API key
-            llm_api_key = await client.get_llm_api_key()
-
-            # Get user settings
-            settings = await client.get_user_settings()
-
-            if llm_api_key and settings:
-                # Create and save agent configuration
-                # Note: This will overwrite existing settings without asking
-                # since user explicitly checked the override checkbox
-                from openhands_cli.stores import AgentStore
-                from openhands_cli.stores.agent_store import resolve_llm_base_url
-
-                store = AgentStore()
-                base_url = resolve_llm_base_url(settings)
-                store.create_and_save_from_settings(
-                    llm_api_key=llm_api_key,
-                    settings=settings,
-                    base_url=base_url,
-                )
-        except ApiClientError:
-            # Settings sync failed, but authentication succeeded
-            pass
 
     def _on_success(self) -> None:
         """Handle successful linking."""
