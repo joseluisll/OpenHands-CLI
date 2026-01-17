@@ -21,6 +21,7 @@ from openhands.sdk.event import (
 from openhands.sdk.event.base import Event
 from openhands.sdk.event.condenser import Condensation, CondensationRequest
 from openhands.sdk.event.conversation_error import ConversationErrorEvent
+from openhands.sdk.event.conversation_state import ConversationStateUpdateEvent
 from openhands.sdk.tool.builtins.finish import FinishAction
 from openhands.sdk.tool.builtins.think import ThinkAction
 from openhands.tools.file_editor.definition import FileEditorAction
@@ -434,6 +435,9 @@ class ConversationVisualizer(ConversationVisualizerBase):
         # Don't emit condensation request events (internal events)
         elif isinstance(event, CondensationRequest):
             return None
+        # Don't emit conversation state update events (internal events for remote sync)
+        elif isinstance(event, ConversationStateUpdateEvent):
+            return None
 
         # Check if this is a plain text event (finish, think, or message)
         if isinstance(event, ActionEvent):
@@ -479,6 +483,9 @@ class ConversationVisualizer(ConversationVisualizerBase):
             return None
         # Don't emit condensation request events (internal events)
         elif isinstance(event, CondensationRequest):
+            return None
+        # Don't emit conversation state update events (internal events for remote sync)
+        elif isinstance(event, ConversationStateUpdateEvent):
             return None
         elif isinstance(event, ActionEvent):
             # Build title using new format: "🔧 {summary}: $ {command}"

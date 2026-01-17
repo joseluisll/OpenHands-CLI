@@ -171,12 +171,22 @@ def setup_cloud_conversation(
     import os
 
     from openhands.workspace import OpenHandsCloudWorkspace
-    from openhands_cli.cloud.conversation import require_api_key
+    from openhands_cli.auth.token_storage import TokenStorage
+    from openhands_cli.cloud.conversation import CloudConversationError
 
     console = Console()
 
     # Get API key from token storage
-    api_key = require_api_key()
+    store = TokenStorage()
+    if not store.has_api_key():
+        raise CloudConversationError(
+            "Not logged in to OpenHands Cloud. Run 'openhands login' first."
+        )
+    api_key = store.get_api_key()
+    if not api_key:
+        raise CloudConversationError(
+            "Invalid API key stored. Run 'openhands login' to re-authenticate."
+        )
 
     # Use default server URL if not provided
     if not server_url:
