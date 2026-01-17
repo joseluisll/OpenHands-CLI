@@ -197,22 +197,49 @@ class StateManager(Widget):
             self.post_message(StateChanged("cloud_ready", old_value, new_value))
     
     # ---- State Update Methods ----
+    # These methods are thread-safe and can be called from background threads.
     
     def set_running(self, is_running: bool) -> None:
-        """Set the running state."""
-        self.is_running = is_running
+        """Set the running state. Thread-safe."""
+        self._schedule_update("is_running", is_running)
     
     def set_confirmation_mode(self, is_active: bool) -> None:
-        """Set confirmation mode state."""
-        self.is_confirmation_mode = is_active
+        """Set confirmation mode state. Thread-safe."""
+        self._schedule_update("is_confirmation_mode", is_active)
+    
+    def _schedule_update(self, attr: str, value: Any) -> None:
+        """Schedule a state update, handling cross-thread calls.
+        
+        When called from a background thread, uses call_from_thread to
+        schedule the update on the main thread.
+        """
+        import threading
+        
+        def do_update():
+            setattr(self, attr, value)
+        
+        # Check if we're in the main thread by checking for active app
+        try:
+            # If we can get the app, we're in the right context
+            _ = self.app
+            do_update()
+        except Exception:
+            # We're in a background thread, need to schedule on main thread
+            # Use call_later which is thread-safe
+            try:
+                self.call_from_thread(do_update)
+            except Exception:
+                # Fallback: just set the attribute without posting messages
+                # This happens during startup before app is fully initialized
+                object.__setattr__(self, attr, value)
     
     def set_cloud_ready(self, ready: bool = True) -> None:
-        """Set cloud workspace ready state."""
-        self.cloud_ready = ready
+        """Set cloud workspace ready state. Thread-safe."""
+        self._schedule_update("cloud_ready", ready)
     
     def set_pending_actions(self, count: int) -> None:
-        """Set the number of pending actions."""
-        self.pending_actions_count = count
+        """Set the number of pending actions. Thread-safe."""
+        self._schedule_update("pending_actions_count", count)
     
     def update_metrics(
         self,
@@ -223,22 +250,34 @@ class StateManager(Widget):
         context_window: int | None = None,
         accumulated_cost: float | None = None,
     ) -> None:
-        """Update conversation metrics.
+        """Update conversation metrics. Thread-safe.
         
         Only updates provided values, leaving others unchanged.
         """
-        if input_tokens is not None:
-            self.input_tokens = input_tokens
-        if output_tokens is not None:
-            self.output_tokens = output_tokens
-        if cache_hit_rate is not None:
-            self.cache_hit_rate = cache_hit_rate
-        if last_request_input_tokens is not None:
-            self.last_request_input_tokens = last_request_input_tokens
-        if context_window is not None:
-            self.context_window = context_window
-        if accumulated_cost is not None:
-            self.accumulated_cost = accumulated_cost
+        def do_update():
+            if input_tokens is not None:
+                self.input_tokens = input_tokens
+            if output_tokens is not None:
+                self.output_tokens = output_tokens
+            if cache_hit_rate is not None:
+                self.cache_hit_rate = cache_hit_rate
+            if last_request_input_tokens is not None:
+                self.last_request_input_tokens = last_request_input_tokens
+            if context_window is not None:
+                self.context_window = context_window
+            if accumulated_cost is not None:
+                self.accumulated_cost = accumulated_cost
+        
+        # Check if we're in the main thread
+        try:
+            _ = self.app
+            do_update()
+        except Exception:
+            try:
+                self.call_from_thread(do_update)
+            except Exception:
+                # Fallback during startup
+                do_update()
     
     def get_snapshot(self) -> ConversationStateSnapshot:
         """Get an immutable snapshot of current state."""
