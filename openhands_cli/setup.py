@@ -202,16 +202,16 @@ def setup_cloud_conversation(
         cloud_api_url=server_url,
         cloud_api_key=api_key,
         sandbox_id=sandbox_id,
-        keep_alive=True
+        keep_alive=True,
     )
 
     # Prepare callbacks list
     callbacks = [event_callback] if event_callback else None
 
     # Create RemoteConversation
+    # Note: RemoteConversation gets its HTTP client from workspace.client
+    # which is configured with the correct host and api_key after sandbox starts
     conversation: BaseConversation = RemoteConversation(
-        host=server_url,
-        api_key=api_key,
         agent=agent,
         workspace=workspace,
         conversation_id=conversation_id,

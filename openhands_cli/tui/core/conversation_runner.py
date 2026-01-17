@@ -1,9 +1,9 @@
 """Conversation runner with confirmation mode support for the refactored UI."""
 
 import asyncio
-from typing import cast
 import uuid
 from collections.abc import Callable
+from typing import cast
 
 from rich.console import Console
 from rich.text import Text
@@ -13,13 +13,13 @@ from openhands.sdk import (
     BaseConversation,
     ConversationExecutionStatus,
     Message,
+    RemoteConversation,
     TextContent,
 )
 from openhands.sdk.conversation.exceptions import ConversationRunError
 from openhands.sdk.conversation.state import (
     ConversationState,
 )
-from openhands.sdk import RemoteConversation
 from openhands.sdk.event.base import Event
 from openhands.sdk.security.confirmation_policy import (
     AlwaysConfirm,
