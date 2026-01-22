@@ -17,7 +17,9 @@ def _is_wsl2() -> bool:
     """Check if running in WSL2 environment."""
     try:
         release = platform.release()
-        return "microsoft" in release.lower() or release.endswith("microsoft-standard-WSL2")
+        return "microsoft" in release.lower() or release.endswith(
+            "microsoft-standard-WSL2"
+        )
     except Exception:
         return False
 
@@ -209,15 +211,11 @@ def launch_gui_server(mount_cwd: bool = False, gpu: bool = False) -> None:
             if mount_path != cwd:
                 print_formatted_text(
                     HTML(
-                        f"<grey>WSL2 detected: Converting path for Docker Desktop</grey>"
+                        "<grey>WSL2 detected: Converting path for Docker Desktop</grey>"
                     )
                 )
-                print_formatted_text(
-                    HTML(f"<grey>  WSL2 path: {cwd}</grey>")
-                )
-                print_formatted_text(
-                    HTML(f"<grey>  Docker path: {mount_path}</grey>")
-                )
+                print_formatted_text(HTML(f"<grey>  WSL2 path: {cwd}</grey>"))
+                print_formatted_text(HTML(f"<grey>  Docker path: {mount_path}</grey>"))
         else:
             mount_path = cwd
 

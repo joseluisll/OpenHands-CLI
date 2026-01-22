@@ -320,8 +320,10 @@ class TestLaunchGuiServer:
         run_call = mock_run.call_args_list[1]
         run_cmd = run_call[0][0]
 
-        # The WSL2 path /mnt/d/ai-data/workspace should be converted to D:/ai-data/workspace
-        assert "SANDBOX_VOLUMES=D:/ai-data/workspace:/workspace:rw" in " ".join(run_cmd)
+        # The WSL2 path /mnt/d/ai-data/workspace should be converted to
+        # D:/ai-data/workspace
+        expected = "SANDBOX_VOLUMES=D:/ai-data/workspace:/workspace:rw"
+        assert expected in " ".join(run_cmd)
 
     @patch("openhands_cli.gui_launcher.check_docker_requirements")
     @patch("openhands_cli.gui_launcher.ensure_config_dir_exists")
@@ -365,4 +367,6 @@ class TestLaunchGuiServer:
         run_cmd = run_call[0][0]
 
         # The path should NOT be converted when not on WSL2
-        assert "SANDBOX_VOLUMES=/mnt/d/ai-data/workspace:/workspace:rw" in " ".join(run_cmd)
+        assert "SANDBOX_VOLUMES=/mnt/d/ai-data/workspace:/workspace:rw" in " ".join(
+            run_cmd
+        )
