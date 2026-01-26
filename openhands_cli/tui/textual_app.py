@@ -19,7 +19,6 @@ from textual.containers import Horizontal, VerticalScroll
 from textual.css.query import NoMatches
 from textual.message import Message
 from textual.screen import Screen
-from textual.signal import Signal
 from textual.widgets import Footer, Input, Static, TextArea
 from textual_autocomplete import AutoComplete
 
@@ -113,7 +112,6 @@ class OpenHandsApp(CollapsibleNavigationMixin, App):
         """
         super().__init__(**kwargs)
 
-        self.conversation_running_signal = Signal(self, "conversation_running_signal")
         self.state_manager = StateManager()
         self.is_ui_initialized = False
 
@@ -218,11 +216,6 @@ class OpenHandsApp(CollapsibleNavigationMixin, App):
         """Called when app starts."""
         from openhands_cli.stores import MissingEnvironmentVariablesError
 
-        # Subscribe to conversation running signal for auto-exit in headless mode
-        self.conversation_running_signal.subscribe(
-            self, self._on_conversation_state_changed
-        )
-
         # Check if user has existing settings
         try:
             initial_setup_required = SettingsScreen.is_initial_setup_required(
@@ -280,18 +273,13 @@ class OpenHandsApp(CollapsibleNavigationMixin, App):
         )
         self.app.push_screen(exit_modal)
 
-    def _on_conversation_state_changed(self, is_running: bool) -> None:
-        """Handle conversation state changes for auto-exit in headless mode."""
-        # If conversation just finished and we're in headless mode, exit
-        if not is_running and self.headless_mode:
-            self._print_conversation_summary()
-            self.exit()
-
     @on(ConversationFinished)
     def on_conversation_finished(self, _event: ConversationFinished) -> None:
         """Handle conversation finished message from StateManager."""
         # Publish to legacy signal for backward compatibility
-        self.conversation_running_signal.publish(False)
+        if self.headless_mode:
+            self._print_conversation_summary()
+            self.exit()
 
     def _print_conversation_summary(self) -> None:
         """Print conversation summary for headless mode."""

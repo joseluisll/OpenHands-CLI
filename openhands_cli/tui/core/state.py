@@ -1,5 +1,6 @@
 """Centralized state management for OpenHands TUI."""
 
+import time
 from typing import TYPE_CHECKING, Any
 
 from textual.containers import Container
@@ -145,16 +146,16 @@ class StateManager(Container):
 
     def _update_elapsed(self) -> None:
         """Update elapsed seconds while running."""
-        if self.running and self._conversation_start_time is not None:
-            import time
 
-            new_elapsed = int(time.time() - self._conversation_start_time)
-            if new_elapsed != self.elapsed_seconds:
-                old_elapsed = self.elapsed_seconds
-                self.elapsed_seconds = new_elapsed
-                self.post_message(
-                    StateChanged("elapsed_seconds", old_elapsed, new_elapsed)
-                )
+        if not self.running:
+            return
+
+        if not self._conversation_start_time:
+            return
+
+        new_elapsed = int(time.time() - self._conversation_start_time)
+        if new_elapsed != self.elapsed_seconds:
+            self.elapsed_seconds = new_elapsed
 
     # ---- State Change Watchers ----
 

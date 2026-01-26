@@ -56,10 +56,6 @@ class WorkingStatusLine(Static):
         """React to running state changes from StateManager."""
         self._update_text()
 
-    def watch_elapsed_seconds(self, _elapsed: int) -> None:
-        """React to elapsed time changes from StateManager."""
-        self._update_text()
-
     # ----- Internal helpers -----
 
     def _on_tick(self) -> None:
