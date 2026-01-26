@@ -1,9 +1,8 @@
 from __future__ import annotations
 
 import os
-import time
-from typing import TYPE_CHECKING
 
+from textual.reactive import var
 from textual.timer import Timer
 from textual.widgets import Static
 
@@ -11,12 +10,13 @@ from openhands_cli.locations import WORK_DIR
 from openhands_cli.utils import abbreviate_number, format_cost
 
 
-if TYPE_CHECKING:
-    from openhands_cli.tui.textual_app import OpenHandsApp
-
-
 class WorkingStatusLine(Static):
-    """Status line showing conversation timer and working indicator (above input)."""
+    """Status line showing conversation timer and working indicator (above input).
+
+    This widget uses data_bind() to bind to StateManager reactive properties.
+    When StateManager.is_running or StateManager.elapsed_seconds change,
+    this widget's corresponding properties are automatically updated.
+    """
 
     DEFAULT_CSS = """
     #working_status_line {
@@ -27,21 +27,20 @@ class WorkingStatusLine(Static):
     }
     """
 
-    def __init__(self, app: OpenHandsApp, **kwargs) -> None:
+    # Reactive properties bound via data_bind() to StateManager
+    is_running: var[bool] = var(False)
+    elapsed_seconds: var[int] = var(0)
+
+    def __init__(self, **kwargs) -> None:
         super().__init__("", id="working_status_line", markup=False, **kwargs)
-        self._conversation_start_time: float | None = None
         self._timer: Timer | None = None
         self._working_frame: int = 0
-        self._is_working: bool = False
-
-        self.main_app = app
 
     def on_mount(self) -> None:
-        """Initialize the working status line and start periodic updates."""
+        """Initialize the working status line and start animation timer."""
         self._update_text()
-        self.main_app.conversation_running_signal.subscribe(
-            self, self._on_conversation_state_changed
-        )
+        # Start animation timer for spinner (runs continuously but only animates when working)
+        self._timer = self.set_interval(0.1, self._on_tick)
 
     def on_unmount(self) -> None:
         """Stop timer when widget is removed."""
@@ -49,48 +48,34 @@ class WorkingStatusLine(Static):
             self._timer.stop()
             self._timer = None
 
-    def _on_conversation_state_changed(self, is_running: bool) -> None:
-        """Update when conversation running state changes."""
-        self._is_working = is_running
-        if is_running:
-            self._conversation_start_time = time.time()
-            if self._timer:
-                self._timer.stop()
+    # ----- Reactive Watchers -----
 
-            self._timer = self.set_interval(0.1, self._on_tick)
-            return
+    def watch_is_running(self, is_running: bool) -> None:
+        """React to running state changes from StateManager."""
+        self._update_text()
 
-        self._conversation_start_time = None
-        if self._timer:
-            self._timer.stop()
-            self._timer = None
-
+    def watch_elapsed_seconds(self, elapsed: int) -> None:
+        """React to elapsed time changes from StateManager."""
         self._update_text()
 
     # ----- Internal helpers -----
 
     def _on_tick(self) -> None:
-        """Periodic update from timer."""
-        if self._conversation_start_time is not None:
-            # Update animation frame more frequently than timer for smooth animation
-            if self._is_working:
-                self._working_frame = (self._working_frame + 1) % 8
+        """Periodic update for animation."""
+        if self.is_running:
+            self._working_frame = (self._working_frame + 1) % 8
             self._update_text()
 
     def _get_working_text(self) -> str:
         """Return working status text if conversation is running."""
-        if not self._conversation_start_time:
+        if not self.is_running:
             return ""
-        elapsed = int(time.time() - self._conversation_start_time)
 
         # Add working indicator with Braille spinner animation
-        working_indicator = ""
-        if self._is_working:
-            # Braille pattern spinner - smooth and professional
-            frames = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧"]
-            working_indicator = f"{frames[self._working_frame % len(frames)]} Working"
+        frames = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧"]
+        working_indicator = f"{frames[self._working_frame % len(frames)]} Working"
 
-        return f"{working_indicator} ({elapsed}s • ESC: pause)"
+        return f"{working_indicator} ({self.elapsed_seconds}s • ESC: pause)"
 
     def _update_text(self) -> None:
         """Rebuild the working status text."""
@@ -99,7 +84,11 @@ class WorkingStatusLine(Static):
 
 
 class InfoStatusLine(Static):
-    """Status line showing work directory, input mode, and conversation metrics."""
+    """Status line showing work directory, input mode, and conversation metrics.
+
+    This widget uses data_bind() to bind to StateManager reactive properties.
+    When StateManager metrics change, this widget automatically updates.
+    """
 
     DEFAULT_CSS = """
     #info_status_line {
@@ -110,93 +99,66 @@ class InfoStatusLine(Static):
     }
     """
 
-    def __init__(self, app: OpenHandsApp, **kwargs) -> None:
+    # Reactive properties bound via data_bind() to StateManager
+    is_running: var[bool] = var(False)
+    is_multiline_mode: var[bool] = var(False)
+    input_tokens: var[int] = var(0)
+    output_tokens: var[int] = var(0)
+    cache_hit_rate: var[str] = var("N/A")
+    last_request_input_tokens: var[int] = var(0)
+    context_window: var[int] = var(0)
+    accumulated_cost: var[float] = var(0.0)
+
+    def __init__(self, **kwargs) -> None:
         super().__init__("", id="info_status_line", markup=True, **kwargs)
-        self.main_app = app
-        self.mode_indicator = "\\[Ctrl+L for multi-line • Ctrl+X for custom editor]"
         self.work_dir_display = self._get_work_dir_display()
-        # Conversation metrics
-        self._input_tokens: int = 0
-        self._output_tokens: int = 0
-        self._cache_hit_rate: str = "N/A"
-        self._last_request_input_tokens: int = 0  # Current context usage
-        self._context_window: int = 0  # Total context window
-        self._accumulated_cost: float = 0.0
-        self._metrics_update_timer: Timer | None = None
 
     def on_mount(self) -> None:
         """Initialize the info status line."""
         self._update_text()
-        self.main_app.input_field.multiline_mode_status.subscribe(
-            self, self._on_handle_mutliline_mode
-        )
-        self.main_app.conversation_running_signal.subscribe(
-            self, self._on_conversation_state_changed
-        )
-
-    def on_unmount(self) -> None:
-        """Stop timer when widget is removed."""
-        if self._metrics_update_timer:
-            self._metrics_update_timer.stop()
-            self._metrics_update_timer = None
 
     def on_resize(self) -> None:
         """Recalculate layout when widget is resized."""
         self._update_text()
 
-    def _on_conversation_state_changed(self, is_running: bool) -> None:
-        """Update metrics display when conversation state changes."""
-        if is_running:
-            # Start periodic metrics updates while conversation is running
-            if self._metrics_update_timer:
-                self._metrics_update_timer.stop()
-            self._metrics_update_timer = self.set_interval(1.0, self._update_metrics)
-        else:
-            # Stop timer and do final metrics update
-            if self._metrics_update_timer:
-                self._metrics_update_timer.stop()
-                self._metrics_update_timer = None
-            self._update_metrics()
+    # ----- Reactive Watchers -----
 
-    def _update_metrics(self) -> None:
-        """Update the conversation metrics from conversation stats."""
-        if self.main_app.conversation_runner:
-            visualizer = self.main_app.conversation_runner.visualizer
-            stats = visualizer.conversation_stats
-            if stats:
-                combined_metrics = stats.get_combined_metrics()
-                if combined_metrics:
-                    self._accumulated_cost = combined_metrics.accumulated_cost or 0.0
-                    usage = combined_metrics.accumulated_token_usage
-                    if usage:
-                        self._input_tokens = usage.prompt_tokens or 0
-                        self._output_tokens = usage.completion_tokens or 0
-                        self._context_window = usage.context_window or 0
-                        # Calculate cache hit rate
-                        prompt = usage.prompt_tokens or 0
-                        cache_read = usage.cache_read_tokens or 0
-                        if prompt > 0:
-                            self._cache_hit_rate = f"{(cache_read / prompt * 100):.0f}%"
-                        else:
-                            self._cache_hit_rate = "N/A"
-                    # Get last request's input tokens (current context usage)
-                    token_usages = combined_metrics.token_usages
-                    if token_usages:
-                        self._last_request_input_tokens = (
-                            token_usages[-1].prompt_tokens or 0
-                        )
-                    else:
-                        self._last_request_input_tokens = 0
+    def watch_is_multiline_mode(self, value: bool) -> None:
+        """React to multiline mode changes from StateManager."""
         self._update_text()
 
-    def _on_handle_mutliline_mode(self, is_multiline_mode: bool) -> None:
-        if is_multiline_mode:
-            self.mode_indicator = (
-                "\\[Multi-line: Ctrl+J to submit • Ctrl+X for custom editor]"
-            )
-        else:
-            self.mode_indicator = "\\[Ctrl+L for multi-line • Ctrl+X for custom editor]"
+    def watch_input_tokens(self, value: int) -> None:
+        """React to input token changes from StateManager."""
         self._update_text()
+
+    def watch_output_tokens(self, value: int) -> None:
+        """React to output token changes from StateManager."""
+        self._update_text()
+
+    def watch_cache_hit_rate(self, value: str) -> None:
+        """React to cache hit rate changes from StateManager."""
+        self._update_text()
+
+    def watch_last_request_input_tokens(self, value: int) -> None:
+        """React to context usage changes from StateManager."""
+        self._update_text()
+
+    def watch_context_window(self, value: int) -> None:
+        """React to context window changes from StateManager."""
+        self._update_text()
+
+    def watch_accumulated_cost(self, value: float) -> None:
+        """React to cost changes from StateManager."""
+        self._update_text()
+
+    # ----- Internal helpers -----
+
+    @property
+    def mode_indicator(self) -> str:
+        """Get the mode indicator text based on current mode."""
+        if self.is_multiline_mode:
+            return "\\[Multi-line: Ctrl+J to submit • Ctrl+X for custom editor]"
+        return "\\[Ctrl+L for multi-line • Ctrl+X for custom editor]"
 
     def _get_work_dir_display(self) -> str:
         """Get the work directory display string with tilde-shortening."""
@@ -212,21 +174,21 @@ class InfoStatusLine(Static):
         Shows: context (current / total) • cost (input tokens • output tokens • cache)
         """
         # Context display: show current context usage / total context window
-        if self._last_request_input_tokens > 0:
-            ctx_current = abbreviate_number(self._last_request_input_tokens)
-            if self._context_window > 0:
-                ctx_total = abbreviate_number(self._context_window)
+        if self.last_request_input_tokens > 0:
+            ctx_current = abbreviate_number(self.last_request_input_tokens)
+            if self.context_window > 0:
+                ctx_total = abbreviate_number(self.context_window)
                 ctx_display = f"ctx {ctx_current} / {ctx_total}"
             else:
                 ctx_display = f"ctx {ctx_current}"
         else:
             ctx_display = "ctx N/A"
 
-        cost_display = f"$ {format_cost(self._accumulated_cost)}"
+        cost_display = f"$ {format_cost(self.accumulated_cost)}"
         token_details = (
-            f"↑ {abbreviate_number(self._input_tokens)} "
-            f"↓ {abbreviate_number(self._output_tokens)} "
-            f"cache {self._cache_hit_rate}"
+            f"↑ {abbreviate_number(self.input_tokens)} "
+            f"↓ {abbreviate_number(self.output_tokens)} "
+            f"cache {self.cache_hit_rate}"
         )
         return f"{ctx_display} • {cost_display} ({token_details})"
 

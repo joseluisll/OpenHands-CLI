@@ -1,8 +1,13 @@
-"""Conversation runner with confirmation mode support for the refactored UI."""
+"""Conversation runner with confirmation mode support for the refactored UI.
+
+This module uses the reactive StateManager pattern for state management.
+UI components bind to StateManager properties via data_bind() for automatic updates.
+"""
 
 import asyncio
 import uuid
 from collections.abc import Callable
+from typing import TYPE_CHECKING
 
 from rich.console import Console
 from rich.text import Text
@@ -29,14 +34,32 @@ from openhands_cli.setup import setup_conversation
 from openhands_cli.tui.widgets.richlog_visualizer import ConversationVisualizer
 from openhands_cli.user_actions.types import UserConfirmation
 
+if TYPE_CHECKING:
+    from openhands_cli.tui.core.state import StateManager
+
 
 class ConversationRunner:
-    """Conversation runner with confirmation mode support for the refactored UI."""
+    """Conversation runner with confirmation mode support for the refactored UI.
+
+    This class manages the lifecycle of a conversation, including:
+    - Processing user messages
+    - Handling confirmation mode for actions
+    - Updating state via StateManager
+
+    State Management:
+        The runner uses StateManager for reactive state updates:
+
+            runner = ConversationRunner(
+                state_manager=app.state_manager,
+                ...
+            )
+            # State changes automatically propagate to bound widgets
+    """
 
     def __init__(
         self,
         conversation_id: uuid.UUID,
-        running_state_callback: Callable[[bool], None],
+        state_manager: "StateManager",
         confirmation_callback: Callable,
         notification_callback: Callable[[str, str, SeverityLevel], None],
         visualizer: ConversationVisualizer,
@@ -50,11 +73,13 @@ class ConversationRunner:
 
         Args:
             conversation_id: UUID for the conversation.
-            error_callback: Callback for handling errors.
-                          Should accept (error_title: str, error_message: str).
-            visualizer: Optional visualizer for output display.
+            state_manager: StateManager for reactive state updates.
+            confirmation_callback: Callback for handling action confirmations.
+            notification_callback: Callback for notifications.
+            visualizer: Visualizer for output display.
             initial_confirmation_policy: Initial confirmation policy to use.
                                         If None, defaults to AlwaysConfirm.
+            event_callback: Optional callback for each event.
             env_overrides_enabled: If True, environment variables will override
                                    stored LLM settings.
             critic_disabled: If True, critic functionality will be disabled.
@@ -76,11 +101,14 @@ class ConversationRunner:
         self._confirmation_mode_active = not isinstance(
             starting_confirmation_policy, NeverConfirm
         )
-        self._running_state_callback: Callable = running_state_callback
-        self._confirmation_callback: Callable = confirmation_callback
-        self._notification_callback: Callable[[str, str, SeverityLevel], None] = (
-            notification_callback
-        )
+
+        # State management via StateManager
+        self._state_manager = state_manager
+        self._confirmation_callback = confirmation_callback
+        self._notification_callback = notification_callback
+
+        # Initialize StateManager state
+        self._state_manager.set_confirmation_mode(self._confirmation_mode_active)
 
     @property
     def is_confirmation_mode_active(self) -> bool:
@@ -266,6 +294,10 @@ class ConversationRunner:
         else:
             self._confirmation_mode_active = True
 
+        # Update StateManager if available
+        if self._state_manager:
+            self._state_manager.set_confirmation_mode(self._confirmation_mode_active)
+
     @property
     def is_running(self) -> bool:
         """Check if conversation is currently running."""
@@ -320,9 +352,10 @@ class ConversationRunner:
                 "error",
             )
 
-    def _update_run_status(self, is_running: bool):
+    def _update_run_status(self, is_running: bool) -> None:
+        """Update the running status via StateManager."""
         self._running = is_running
-        self._running_state_callback(is_running)
+        self._state_manager.set_running(is_running)
 
     def pause_runner_without_blocking(self):
         if self.is_running:

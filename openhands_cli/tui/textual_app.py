@@ -37,6 +37,7 @@ from openhands_cli.locations import CONVERSATIONS_DIR
 from openhands_cli.stores import AgentStore, MissingEnvironmentVariablesError
 from openhands_cli.theme import OPENHANDS_THEME
 from openhands_cli.tui.content.splash import get_splash_content
+from openhands_cli.tui.core import ConversationFinished, StateManager
 from openhands_cli.tui.core.commands import is_valid_command, show_help
 from openhands_cli.tui.core.conversation_manager import ConversationManager
 from openhands_cli.tui.core.conversation_runner import ConversationRunner
@@ -117,6 +118,7 @@ class OpenHandsApp(CollapsibleNavigationMixin, App):
         super().__init__(**kwargs)
 
         self.conversation_running_signal = Signal(self, "conversation_running_signal")
+        self.state_manager = StateManager()
         self.is_ui_initialized = False
 
         # Store exit confirmation setting
@@ -192,14 +194,8 @@ class OpenHandsApp(CollapsibleNavigationMixin, App):
                 yield Static(id="splash_update_notice", classes="splash-update-notice")
                 yield Static(id="splash_critic_notice", classes="splash-critic-notice")
 
-            # Input area - docked to bottom
-            with Container(id="input_area"):
-                yield WorkingStatusLine(self)
-                yield InputField(
-                    placeholder="Type your message, @mention a file, or / for commands"
-                )
-
-                yield InfoStatusLine(self)
+            # StateManager contains the input area with reactive status lines
+            yield self.state_manager
 
         # Footer - shows available key bindings
         yield Footer()
@@ -293,6 +289,12 @@ class OpenHandsApp(CollapsibleNavigationMixin, App):
         if not is_running and self.headless_mode:
             self._print_conversation_summary()
             self.exit()
+
+    @on(ConversationFinished)
+    def on_conversation_finished(self, event: ConversationFinished) -> None:
+        """Handle conversation finished message from StateManager."""
+        # Publish to legacy signal for backward compatibility
+        self.conversation_running_signal.publish(False)
 
     def _print_conversation_summary(self) -> None:
         """Print conversation summary for headless mode."""
@@ -455,14 +457,14 @@ class OpenHandsApp(CollapsibleNavigationMixin, App):
 
         runner = ConversationRunner(
             conversation_uuid,
-            self.conversation_running_signal.publish,
-            self._handle_confirmation_request,
-            lambda title, message, severity: (
+            state_manager=self.state_manager,
+            confirmation_callback=self._handle_confirmation_request,
+            notification_callback=lambda title, message, severity: (
                 self.notify(title=title, message=message, severity=severity)
             ),
-            conversation_visualizer,
-            self.initial_confirmation_policy,
-            event_callback,
+            visualizer=conversation_visualizer,
+            initial_confirmation_policy=self.initial_confirmation_policy,
+            event_callback=event_callback,
             env_overrides_enabled=self.env_overrides_enabled,
             critic_disabled=self.critic_disabled,
         )
