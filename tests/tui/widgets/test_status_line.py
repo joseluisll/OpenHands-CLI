@@ -1,7 +1,4 @@
-import types
 from unittest.mock import MagicMock
-
-import pytest
 
 import openhands_cli.tui.widgets.status_line as status_line_module
 
@@ -13,71 +10,15 @@ from openhands_cli.tui.widgets.status_line import (
 from openhands_cli.utils import abbreviate_number, format_cost
 
 
-@pytest.fixture
-def dummy_app() -> object:
-    """Minimal 'app' object to satisfy the widgets' expectations."""
-    app = types.SimpleNamespace()
-    # For WorkingStatusLine
-    app.conversation_running_signal = types.SimpleNamespace(subscribe=MagicMock())
-    # For InfoStatusLine
-    app.input_field = types.SimpleNamespace(
-        mutliline_mode_status=types.SimpleNamespace(subscribe=MagicMock())
-    )
-    # For metrics display
-    app.conversation_runner = None
-    return app
-
-
 # ----- WorkingStatusLine tests -----
 
 
-def test_conversation_start_sets_timer_and_flags(dummy_app, monkeypatch):
-    """Starting a conversation marks working, sets start time, and creates a timer."""
-    widget = WorkingStatusLine(app=dummy_app)
-
-    fake_timer = MagicMock()
-    set_interval_mock = MagicMock(return_value=fake_timer)
-    monkeypatch.setattr(widget, "set_interval", set_interval_mock)
-
-    assert widget._conversation_start_time is None
-    assert widget._timer is None
-    assert widget._is_working is False
-
-    widget._on_conversation_state_changed(True)
-
-    assert widget._is_working is True
-    assert widget._conversation_start_time is not None
-    set_interval_mock.assert_called_once()
-    assert widget._timer is fake_timer
-
-
-def test_conversation_stop_stops_timer_and_clears_state(dummy_app, monkeypatch):
-    """Stopping a conversation stops the timer, clears state, and updates text."""
-    widget = WorkingStatusLine(app=dummy_app)
-
-    fake_timer = MagicMock()
-    widget._timer = fake_timer
-    widget._conversation_start_time = 123.0
-    widget._is_working = True
-
-    update_text_mock = MagicMock()
-    monkeypatch.setattr(widget, "_update_text", update_text_mock)
-
-    widget._on_conversation_state_changed(False)
-
-    assert widget._is_working is False
-    assert widget._conversation_start_time is None
-    fake_timer.stop.assert_called_once()
-    assert widget._timer is None
-    update_text_mock.assert_called_once()
-
-
-def test_on_tick_increments_working_frame_and_updates_text(dummy_app, monkeypatch):
+def test_on_tick_increments_working_frame_and_updates_text(monkeypatch):
     """Tick while working advances the spinner frame and triggers a text update."""
-    widget = WorkingStatusLine(app=dummy_app)
+    widget = WorkingStatusLine()
 
-    widget._conversation_start_time = 0.0  # non-None to enable ticking
-    widget._is_working = True
+    # Set reactive properties directly
+    widget.running = True
     widget._working_frame = 0
 
     update_text_mock = MagicMock()
@@ -89,40 +30,60 @@ def test_on_tick_increments_working_frame_and_updates_text(dummy_app, monkeypatc
     update_text_mock.assert_called_once()
 
 
-def test_get_working_text_includes_spinner_and_elapsed_seconds(dummy_app, monkeypatch):
+def test_get_working_text_includes_spinner_and_elapsed_seconds(monkeypatch):
     """_get_working_text returns spinner + 'Working' + elapsed seconds when active."""
-    widget = WorkingStatusLine(app=dummy_app)
+    widget = WorkingStatusLine()
 
-    # Fix "current" time and start time to make elapsed deterministic.
-    start_time = 10.0
-    now_time = 15.4  # ~5 seconds later
-    widget._conversation_start_time = start_time
-    widget._is_working = True
+    # Set reactive properties directly
+    widget.running = True
+    widget.elapsed_seconds = 5
     widget._working_frame = 0  # should map to the first spinner frame "⠋"
-
-    monkeypatch.setattr(status_line_module.time, "time", lambda: now_time)
 
     text = widget._get_working_text()
 
-    # Exact text should match the first frame and rounded elapsed seconds.
+    # Exact text should match the first frame and elapsed seconds.
     assert text == "⠋ Working (5s • ESC: pause)"
 
 
-def test_get_working_text_when_not_started_returns_empty(dummy_app, monkeypatch):
-    """If no conversation start time is set, working text should be empty."""
-    widget = WorkingStatusLine(app=dummy_app)
+def test_get_working_text_when_not_running_returns_empty(monkeypatch):
+    """If not running, working text should be empty."""
+    widget = WorkingStatusLine()
 
-    widget._conversation_start_time = None
-    widget._is_working = True  # even if working flag is true, no start time => no text
+    widget.running = False
+    widget.elapsed_seconds = 10  # even with elapsed time, not running => no text
 
     text = widget._get_working_text()
     assert text == ""
 
 
+def test_watch_running_updates_text(monkeypatch):
+    """Changing running state triggers text update."""
+    widget = WorkingStatusLine()
+
+    update_text_mock = MagicMock()
+    monkeypatch.setattr(widget, "_update_text", update_text_mock)
+
+    widget.watch_running(True)
+
+    update_text_mock.assert_called_once()
+
+
+def test_watch_elapsed_seconds_updates_text(monkeypatch):
+    """Changing elapsed_seconds triggers text update."""
+    widget = WorkingStatusLine()
+
+    update_text_mock = MagicMock()
+    monkeypatch.setattr(widget, "_update_text", update_text_mock)
+
+    widget.watch_elapsed_seconds(10)
+
+    update_text_mock.assert_called_once()
+
+
 # ----- InfoStatusLine tests -----
 
 
-def test_get_work_dir_display_shortens_home_to_tilde(dummy_app, monkeypatch):
+def test_get_work_dir_display_shortens_home_to_tilde(monkeypatch):
     """_get_work_dir_display replaces the home prefix with '~' when applicable."""
     # Pretend the home directory is /home/testuser
     monkeypatch.setattr(
@@ -137,7 +98,7 @@ def test_get_work_dir_display_shortens_home_to_tilde(dummy_app, monkeypatch):
         "/home/testuser/projects/openhands",
     )
 
-    widget = InfoStatusLine(app=dummy_app)
+    widget = InfoStatusLine()
     display = widget._get_work_dir_display()
 
     assert display.startswith("~")
@@ -146,42 +107,47 @@ def test_get_work_dir_display_shortens_home_to_tilde(dummy_app, monkeypatch):
     assert "/home/testuser" not in display
 
 
-def test_handle_multiline_mode_updates_indicator_and_refreshes(dummy_app, monkeypatch):
-    """Toggling multiline mode updates the mode indicator and refreshes text."""
-    widget = InfoStatusLine(app=dummy_app)
+def test_mode_indicator_property_multiline(monkeypatch):
+    """mode_indicator property returns correct text based on is_multiline_mode."""
+    widget = InfoStatusLine()
 
-    update_text_mock = MagicMock()
-    monkeypatch.setattr(widget, "_update_text", update_text_mock)
+    # Default (single-line mode)
+    widget.is_multiline_mode = False
+    assert (
+        widget.mode_indicator == "\\[Ctrl+L for multi-line • Ctrl+X for custom editor]"
+    )
 
-    # Enable multiline mode
-    widget._on_handle_mutliline_mode(True)
+    # Multiline mode
+    widget.is_multiline_mode = True
     assert (
         widget.mode_indicator
         == "\\[Multi-line: Ctrl+J to submit • Ctrl+X for custom editor]"
     )
+
+
+def test_watch_is_multiline_mode_updates_text(monkeypatch):
+    """Changing is_multiline_mode triggers text update."""
+    widget = InfoStatusLine()
+
+    update_text_mock = MagicMock()
+    monkeypatch.setattr(widget, "_update_text", update_text_mock)
+
+    widget.watch_is_multiline_mode(True)
+
     update_text_mock.assert_called_once()
 
-    update_text_mock.reset_mock()
 
-    # Disable multiline mode
-    widget._on_handle_mutliline_mode(False)
-    assert (
-        widget.mode_indicator == "\\[Ctrl+L for multi-line • Ctrl+X for custom editor]"
-    )
-    update_text_mock.assert_called_once()
-
-
-def test_update_text_uses_work_dir_and_metrics(dummy_app, monkeypatch):
+def test_update_text_uses_work_dir_and_metrics(monkeypatch):
     """_update_text composes the status line with metrics right-aligned in grey."""
-    widget = InfoStatusLine(app=dummy_app)
+    widget = InfoStatusLine()
 
     widget.work_dir_display = "~/my-dir"
-    widget._input_tokens = 0
-    widget._output_tokens = 0
-    widget._cache_hit_rate = "N/A"
-    widget._last_request_input_tokens = 0
-    widget._context_window = 0
-    widget._accumulated_cost = 0.0
+    widget.input_tokens = 0
+    widget.output_tokens = 0
+    widget.cache_hit_rate = "N/A"
+    widget.last_request_input_tokens = 0
+    widget.context_window = 0
+    widget.accumulated_cost = 0.0
 
     update_mock = MagicMock()
     monkeypatch.setattr(widget, "update", update_mock)
@@ -201,17 +167,17 @@ def test_update_text_uses_work_dir_and_metrics(dummy_app, monkeypatch):
     assert "$ 0.00" in call_arg
 
 
-def test_update_text_shows_all_metrics(dummy_app, monkeypatch):
+def test_update_text_shows_all_metrics(monkeypatch):
     """_update_text shows context (current/total), cost, and token details in grey."""
-    widget = InfoStatusLine(app=dummy_app)
+    widget = InfoStatusLine()
 
     widget.work_dir_display = "~/my-dir"
-    widget._input_tokens = 5220000  # 5.22M accumulated
-    widget._output_tokens = 42010  # 42.01K
-    widget._cache_hit_rate = "77%"
-    widget._last_request_input_tokens = 50000  # 50K current context
-    widget._context_window = 128000  # 128K total
-    widget._accumulated_cost = 10.5507
+    widget.input_tokens = 5220000  # 5.22M accumulated
+    widget.output_tokens = 42010  # 42.01K
+    widget.cache_hit_rate = "77%"
+    widget.last_request_input_tokens = 50000  # 50K current context
+    widget.context_window = 128000  # 128K total
+    widget.accumulated_cost = 10.5507
 
     update_mock = MagicMock()
     monkeypatch.setattr(widget, "update", update_mock)
@@ -234,16 +200,16 @@ def test_update_text_shows_all_metrics(dummy_app, monkeypatch):
     assert "cache 77%" in call_arg
 
 
-def test_format_metrics_display_with_context_current_and_total(dummy_app):
+def test_format_metrics_display_with_context_current_and_total():
     """_format_metrics_display shows current context / total context window."""
-    widget = InfoStatusLine(app=dummy_app)
+    widget = InfoStatusLine()
 
-    widget._input_tokens = 1000
-    widget._output_tokens = 500
-    widget._cache_hit_rate = "50%"
-    widget._last_request_input_tokens = 50000  # 50K current
-    widget._context_window = 200000  # 200K total
-    widget._accumulated_cost = 0.05
+    widget.input_tokens = 1000
+    widget.output_tokens = 500
+    widget.cache_hit_rate = "50%"
+    widget.last_request_input_tokens = 50000  # 50K current
+    widget.context_window = 200000  # 200K total
+    widget.accumulated_cost = 0.05
 
     result = widget._format_metrics_display()
 
@@ -254,16 +220,16 @@ def test_format_metrics_display_with_context_current_and_total(dummy_app):
     assert "cache 50%" in result
 
 
-def test_format_metrics_display_with_context_current_only(dummy_app):
+def test_format_metrics_display_with_context_current_only():
     """_format_metrics_display shows only current context when total is unavailable."""
-    widget = InfoStatusLine(app=dummy_app)
+    widget = InfoStatusLine()
 
-    widget._input_tokens = 1000
-    widget._output_tokens = 500
-    widget._cache_hit_rate = "50%"
-    widget._last_request_input_tokens = 50000  # 50K current
-    widget._context_window = 0  # No total available
-    widget._accumulated_cost = 0.05
+    widget.input_tokens = 1000
+    widget.output_tokens = 500
+    widget.cache_hit_rate = "50%"
+    widget.last_request_input_tokens = 50000  # 50K current
+    widget.context_window = 0  # No total available
+    widget.accumulated_cost = 0.05
 
     result = widget._format_metrics_display()
 
@@ -272,16 +238,16 @@ def test_format_metrics_display_with_context_current_only(dummy_app):
     assert "$ 0.0500" in result
 
 
-def test_format_metrics_display_without_context(dummy_app):
+def test_format_metrics_display_without_context():
     """_format_metrics_display shows N/A when no context info available."""
-    widget = InfoStatusLine(app=dummy_app)
+    widget = InfoStatusLine()
 
-    widget._input_tokens = 1000
-    widget._output_tokens = 500
-    widget._cache_hit_rate = "50%"
-    widget._last_request_input_tokens = 0
-    widget._context_window = 0
-    widget._accumulated_cost = 0.05
+    widget.input_tokens = 1000
+    widget.output_tokens = 500
+    widget.cache_hit_rate = "50%"
+    widget.last_request_input_tokens = 0
+    widget.context_window = 0
+    widget.accumulated_cost = 0.05
 
     result = widget._format_metrics_display()
 
@@ -341,160 +307,76 @@ def test_format_cost_positive():
     assert format_cost(10.5507) == "10.5507"
 
 
-# ----- InfoStatusLine metrics update tests -----
+# ----- InfoStatusLine reactive watcher tests -----
 
 
-def test_conversation_state_changed_starts_metrics_timer(dummy_app, monkeypatch):
-    """Starting a conversation starts the metrics update timer."""
-    widget = InfoStatusLine(app=dummy_app)
-
-    fake_timer = MagicMock()
-    set_interval_mock = MagicMock(return_value=fake_timer)
-    monkeypatch.setattr(widget, "set_interval", set_interval_mock)
-
-    assert widget._metrics_update_timer is None
-
-    widget._on_conversation_state_changed(True)
-
-    set_interval_mock.assert_called_once()
-    assert widget._metrics_update_timer is fake_timer
-
-
-def test_conversation_state_changed_stops_metrics_timer(dummy_app, monkeypatch):
-    """Stopping a conversation stops the metrics update timer."""
-    widget = InfoStatusLine(app=dummy_app)
-
-    fake_timer = MagicMock()
-    widget._metrics_update_timer = fake_timer
-
-    update_metrics_mock = MagicMock()
-    monkeypatch.setattr(widget, "_update_metrics", update_metrics_mock)
-
-    widget._on_conversation_state_changed(False)
-
-    fake_timer.stop.assert_called_once()
-    assert widget._metrics_update_timer is None
-    update_metrics_mock.assert_called_once()
-
-
-def test_update_metrics_gets_all_metrics_from_conversation_runner(
-    dummy_app, monkeypatch
-):
-    """_update_metrics retrieves all metrics from conversation runner's visualizer."""
-    widget = InfoStatusLine(app=dummy_app)
-
-    # Mock accumulated token usage
-    mock_usage = MagicMock()
-    mock_usage.prompt_tokens = 5000
-    mock_usage.completion_tokens = 1000
-    mock_usage.context_window = 128000
-    mock_usage.cache_read_tokens = 2500  # 50% cache hit
-
-    # Mock last request token usage (for current context)
-    mock_last_usage = MagicMock()
-    mock_last_usage.prompt_tokens = 3000  # Last request input tokens
-
-    # Mock the conversation runner and its visualizer
-    mock_combined_metrics = MagicMock()
-    mock_combined_metrics.accumulated_cost = 0.5678
-    mock_combined_metrics.accumulated_token_usage = mock_usage
-    mock_combined_metrics.token_usages = [mock_last_usage]
-
-    mock_stats = MagicMock()
-    mock_stats.get_combined_metrics.return_value = mock_combined_metrics
-
-    mock_visualizer = MagicMock()
-    mock_visualizer.conversation_stats = mock_stats
-
-    mock_runner = MagicMock()
-    mock_runner.visualizer = mock_visualizer
-
-    dummy_app.conversation_runner = mock_runner
+def test_watch_input_tokens_updates_text(monkeypatch):
+    """Changing input_tokens triggers text update."""
+    widget = InfoStatusLine()
 
     update_text_mock = MagicMock()
     monkeypatch.setattr(widget, "_update_text", update_text_mock)
 
-    widget._update_metrics()
+    widget.watch_input_tokens(1000)
 
-    assert widget._accumulated_cost == 0.5678
-    assert widget._input_tokens == 5000
-    assert widget._output_tokens == 1000
-    assert widget._context_window == 128000
-    assert widget._last_request_input_tokens == 3000
-    assert widget._cache_hit_rate == "50%"
     update_text_mock.assert_called_once()
 
 
-def test_update_metrics_handles_no_conversation_runner(dummy_app, monkeypatch):
-    """_update_metrics handles case when conversation runner is None."""
-    widget = InfoStatusLine(app=dummy_app)
-    widget._accumulated_cost = 0.0
-    widget._input_tokens = 0
+def test_watch_output_tokens_updates_text(monkeypatch):
+    """Changing output_tokens triggers text update."""
+    widget = InfoStatusLine()
 
     update_text_mock = MagicMock()
     monkeypatch.setattr(widget, "_update_text", update_text_mock)
 
-    widget._update_metrics()
+    widget.watch_output_tokens(500)
 
-    assert widget._accumulated_cost == 0.0
-    assert widget._input_tokens == 0
     update_text_mock.assert_called_once()
 
 
-def test_update_metrics_handles_no_stats(dummy_app, monkeypatch):
-    """_update_metrics handles case when conversation stats is None."""
-    widget = InfoStatusLine(app=dummy_app)
-    widget._accumulated_cost = 0.0
-
-    mock_visualizer = MagicMock()
-    mock_visualizer.conversation_stats = None
-
-    mock_runner = MagicMock()
-    mock_runner.visualizer = mock_visualizer
-
-    dummy_app.conversation_runner = mock_runner
+def test_watch_accumulated_cost_updates_text(monkeypatch):
+    """Changing accumulated_cost triggers text update."""
+    widget = InfoStatusLine()
 
     update_text_mock = MagicMock()
     monkeypatch.setattr(widget, "_update_text", update_text_mock)
 
-    widget._update_metrics()
+    widget.watch_accumulated_cost(0.5)
 
-    assert widget._accumulated_cost == 0.0
     update_text_mock.assert_called_once()
 
 
-def test_update_metrics_handles_zero_prompt_tokens(dummy_app, monkeypatch):
-    """_update_metrics handles zero prompt tokens for cache hit calculation."""
-    widget = InfoStatusLine(app=dummy_app)
-
-    # Mock token usage with zero prompt tokens
-    mock_usage = MagicMock()
-    mock_usage.prompt_tokens = 0
-    mock_usage.completion_tokens = 100
-    mock_usage.context_window = 0
-    mock_usage.cache_read_tokens = 0
-
-    mock_combined_metrics = MagicMock()
-    mock_combined_metrics.accumulated_cost = 0.01
-    mock_combined_metrics.accumulated_token_usage = mock_usage
-    mock_combined_metrics.token_usages = []  # No token usages
-
-    mock_stats = MagicMock()
-    mock_stats.get_combined_metrics.return_value = mock_combined_metrics
-
-    mock_visualizer = MagicMock()
-    mock_visualizer.conversation_stats = mock_stats
-
-    mock_runner = MagicMock()
-    mock_runner.visualizer = mock_visualizer
-
-    dummy_app.conversation_runner = mock_runner
+def test_watch_cache_hit_rate_updates_text(monkeypatch):
+    """Changing cache_hit_rate triggers text update."""
+    widget = InfoStatusLine()
 
     update_text_mock = MagicMock()
     monkeypatch.setattr(widget, "_update_text", update_text_mock)
 
-    widget._update_metrics()
+    widget.watch_cache_hit_rate("50%")
 
-    assert widget._cache_hit_rate == "N/A"
-    assert widget._last_request_input_tokens == 0
+    update_text_mock.assert_called_once()
+
+
+def test_watch_context_window_updates_text(monkeypatch):
+    """Changing context_window triggers text update."""
+    widget = InfoStatusLine()
+
+    update_text_mock = MagicMock()
+    monkeypatch.setattr(widget, "_update_text", update_text_mock)
+
+    widget.watch_context_window(128000)
+
+    update_text_mock.assert_called_once()
+
+
+def test_watch_last_request_input_tokens_updates_text(monkeypatch):
+    """Changing last_request_input_tokens triggers text update."""
+    widget = InfoStatusLine()
+
+    update_text_mock = MagicMock()
+    monkeypatch.setattr(widget, "_update_text", update_text_mock)
+
+    widget.watch_last_request_input_tokens(50000)
+
     update_text_mock.assert_called_once()

@@ -15,7 +15,7 @@ from typing import ClassVar
 
 from textual import events, getters, on
 from textual.app import App, ComposeResult, SystemCommand
-from textual.containers import Container, Horizontal, VerticalScroll
+from textual.containers import Horizontal, VerticalScroll
 from textual.css.query import NoMatches
 from textual.message import Message
 from textual.screen import Screen
@@ -62,10 +62,6 @@ from openhands_cli.tui.widgets.collapsible import (
     CollapsibleTitle,
 )
 from openhands_cli.tui.widgets.richlog_visualizer import ConversationVisualizer
-from openhands_cli.tui.widgets.status_line import (
-    InfoStatusLine,
-    WorkingStatusLine,
-)
 from openhands_cli.user_actions.types import UserConfirmation
 from openhands_cli.utils import json_callback
 
@@ -291,7 +287,7 @@ class OpenHandsApp(CollapsibleNavigationMixin, App):
             self.exit()
 
     @on(ConversationFinished)
-    def on_conversation_finished(self, event: ConversationFinished) -> None:
+    def on_conversation_finished(self, _event: ConversationFinished) -> None:
         """Handle conversation finished message from StateManager."""
         # Publish to legacy signal for backward compatibility
         self.conversation_running_signal.publish(False)

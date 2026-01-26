@@ -28,7 +28,8 @@ class WorkingStatusLine(Static):
     """
 
     # Reactive properties bound via data_bind() to StateManager
-    is_running: var[bool] = var(False)
+    # Note: Named with underscore prefix to avoid conflict with MessagePump.is_running
+    running: var[bool] = var(False)
     elapsed_seconds: var[int] = var(0)
 
     def __init__(self, **kwargs) -> None:
@@ -39,7 +40,7 @@ class WorkingStatusLine(Static):
     def on_mount(self) -> None:
         """Initialize the working status line and start animation timer."""
         self._update_text()
-        # Start animation timer for spinner (runs continuously but only animates when working)
+        # Start animation timer for spinner (animates only when working)
         self._timer = self.set_interval(0.1, self._on_tick)
 
     def on_unmount(self) -> None:
@@ -50,11 +51,11 @@ class WorkingStatusLine(Static):
 
     # ----- Reactive Watchers -----
 
-    def watch_is_running(self, is_running: bool) -> None:
+    def watch_running(self, _running: bool) -> None:
         """React to running state changes from StateManager."""
         self._update_text()
 
-    def watch_elapsed_seconds(self, elapsed: int) -> None:
+    def watch_elapsed_seconds(self, _elapsed: int) -> None:
         """React to elapsed time changes from StateManager."""
         self._update_text()
 
@@ -62,13 +63,13 @@ class WorkingStatusLine(Static):
 
     def _on_tick(self) -> None:
         """Periodic update for animation."""
-        if self.is_running:
+        if self.running:
             self._working_frame = (self._working_frame + 1) % 8
             self._update_text()
 
     def _get_working_text(self) -> str:
         """Return working status text if conversation is running."""
-        if not self.is_running:
+        if not self.running:
             return ""
 
         # Add working indicator with Braille spinner animation
@@ -100,7 +101,8 @@ class InfoStatusLine(Static):
     """
 
     # Reactive properties bound via data_bind() to StateManager
-    is_running: var[bool] = var(False)
+    # Note: Named 'running' to avoid conflict with MessagePump.is_running
+    running: var[bool] = var(False)
     is_multiline_mode: var[bool] = var(False)
     input_tokens: var[int] = var(0)
     output_tokens: var[int] = var(0)
@@ -123,31 +125,31 @@ class InfoStatusLine(Static):
 
     # ----- Reactive Watchers -----
 
-    def watch_is_multiline_mode(self, value: bool) -> None:
+    def watch_is_multiline_mode(self, _value: bool) -> None:
         """React to multiline mode changes from StateManager."""
         self._update_text()
 
-    def watch_input_tokens(self, value: int) -> None:
+    def watch_input_tokens(self, _value: int) -> None:
         """React to input token changes from StateManager."""
         self._update_text()
 
-    def watch_output_tokens(self, value: int) -> None:
+    def watch_output_tokens(self, _value: int) -> None:
         """React to output token changes from StateManager."""
         self._update_text()
 
-    def watch_cache_hit_rate(self, value: str) -> None:
+    def watch_cache_hit_rate(self, _value: str) -> None:
         """React to cache hit rate changes from StateManager."""
         self._update_text()
 
-    def watch_last_request_input_tokens(self, value: int) -> None:
+    def watch_last_request_input_tokens(self, _value: int) -> None:
         """React to context usage changes from StateManager."""
         self._update_text()
 
-    def watch_context_window(self, value: int) -> None:
+    def watch_context_window(self, _value: int) -> None:
         """React to context window changes from StateManager."""
         self._update_text()
 
-    def watch_accumulated_cost(self, value: float) -> None:
+    def watch_accumulated_cost(self, _value: float) -> None:
         """React to cost changes from StateManager."""
         self._update_text()
 

@@ -34,6 +34,7 @@ from openhands_cli.setup import setup_conversation
 from openhands_cli.tui.widgets.richlog_visualizer import ConversationVisualizer
 from openhands_cli.user_actions.types import UserConfirmation
 
+
 if TYPE_CHECKING:
     from openhands_cli.tui.core.state import StateManager
 
