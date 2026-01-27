@@ -145,7 +145,7 @@ class StateManager(Container):
             self._timer = None
 
     def _update_elapsed(self) -> None:
-        """Update elapsed seconds while running."""
+        """Update elapsed seconds and metrics while running."""
 
         if not self.running:
             return
@@ -156,6 +156,9 @@ class StateManager(Container):
         new_elapsed = int(time.time() - self._conversation_start_time)
         if new_elapsed != self.elapsed_seconds:
             self.elapsed_seconds = new_elapsed
+
+        # Update metrics from conversation stats
+        self._update_metrics()
 
     # ---- State Change Watchers ----
 
@@ -255,11 +258,18 @@ class StateManager(Container):
         self._schedule_update("pending_actions_count", count)
 
     def set_metrics(self, metrics: Metrics) -> None:
-        """Set the metrics object. Thread-safe.
-
-        Called by ConversationRunner to update metrics from conversation stats.
-        """
+        """Set the metrics object. Thread-safe."""
         self._schedule_update("metrics", metrics)
+
+    def _update_metrics(self) -> None:
+        """Update metrics from conversation stats."""
+        if self._conversation is None:
+            return
+
+        stats = self._conversation.state.stats
+        if stats:
+            combined_metrics = stats.get_combined_metrics()
+            self.metrics = combined_metrics
 
     def reset(self) -> None:
         """Reset state for a new conversation."""
