@@ -100,10 +100,6 @@ def setup_conversation(
     """
     Setup the conversation with agent.
 
-    Note: This function does NOT set the confirmation policy. The caller
-    (ConversationRunner) should attach the conversation to StateManager,
-    which owns and syncs the confirmation policy.
-
     Args:
         conversation_id: conversation ID to use. If not provided, a random UUID
             will be generated.
@@ -140,9 +136,6 @@ def setup_conversation(
         callbacks=callbacks,
     )
 
-    # Set up security analyzer once at conversation creation
-    # Note: Confirmation policy is NOT set here - StateManager owns it and will
-    # apply the initial policy when the conversation is attached
     conversation.set_security_analyzer(LLMSecurityAnalyzer())
     conversation.set_confirmation_policy(confirmation_policy)
 
