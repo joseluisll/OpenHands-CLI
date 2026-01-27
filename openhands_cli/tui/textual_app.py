@@ -530,11 +530,6 @@ class OpenHandsApp(CollapsibleNavigationMixin, App):
 
     @on(SlashCommandSubmitted)
     def on_slash_command_submitted(self, event: SlashCommandSubmitted) -> None:
-        """Handle slash commands directly in the App.
-
-        Commands are executed here rather than in a separate CommandHandler
-        to keep command logic centralized and avoid coupling issues.
-        """
         command = event.command
 
         if command == "help":
