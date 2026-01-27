@@ -242,7 +242,7 @@ class TestOpenHandsAppCommands:
             # Verify state_manager has the default policy
             assert isinstance(oh_app.state_manager.confirmation_policy, AlwaysConfirm)
 
-            oh_app._command_handler.handle_command("/confirm")
+            oh_app._command_confirm()
 
             top_screen = oh_app.screen_stack[-1]
             assert isinstance(top_screen, ConfirmationSettingsModal)
@@ -264,7 +264,7 @@ class TestOpenHandsAppCommands:
         async with app.run_test() as pilot:
             oh_app = cast(OpenHandsApp, pilot.app)
 
-            oh_app._command_handler.handle_command("/exit")
+            oh_app._command_exit()
 
             top_screen = oh_app.screen_stack[-1]
             assert isinstance(top_screen, ExitConfirmationModal)
@@ -290,7 +290,7 @@ class TestOpenHandsAppCommands:
             exit_mock = mock.MagicMock()
             oh_app.exit = exit_mock
 
-            oh_app._command_handler.handle_command("/exit")
+            oh_app._command_exit()
 
             exit_mock.assert_called_once_with()
 
@@ -336,7 +336,7 @@ class TestOpenHandsAppCommands:
             else:
                 oh_app.conversation_runner = None
 
-            oh_app._command_handler.handle_command("/condense")
+            oh_app._command_condense()
 
             if expected_notification:
                 # Should have called notify with error
@@ -376,7 +376,7 @@ class TestOpenHandsAppCommands:
             notify_mock = mock.MagicMock()
             oh_app.notify = notify_mock
 
-            oh_app._command_handler.handle_command("/condense")
+            oh_app._command_condense()
 
             # Verify the async method was called
             dummy_runner.condense_async.assert_called_once_with()
@@ -407,7 +407,7 @@ class TestOpenHandsAppCommands:
             notify_mock = mock.MagicMock()
             oh_app.notify = notify_mock
 
-            oh_app._command_handler.handle_command("/condense")
+            oh_app._command_condense()
 
             # Verify error notification was called with correct parameters
             notify_mock.assert_called_once_with(
@@ -439,7 +439,7 @@ class TestOpenHandsAppCommands:
                 notify_mock = mock.MagicMock()
                 oh_app.notify = notify_mock
 
-                oh_app._command_handler.handle_command("/feedback")
+                oh_app._command_feedback()
 
                 # Verify browser was opened with correct URL
                 mock_browser.assert_called_once_with(
@@ -477,7 +477,7 @@ class TestOpenHandsAppCommands:
             notify_mock = mock.MagicMock()
             oh_app.notify = notify_mock
 
-            oh_app._command_handler.handle_command("/new")
+            oh_app._command_new()
 
             # Verify a new conversation ID was generated
             assert oh_app.conversation_id != original_conversation_id
@@ -521,7 +521,7 @@ class TestOpenHandsAppCommands:
             notify_mock = mock.MagicMock()
             oh_app.notify = notify_mock
 
-            oh_app._command_handler.handle_command("/new")
+            oh_app._command_new()
 
             # Verify conversation ID was NOT changed
             assert oh_app.conversation_id == original_conversation_id
@@ -563,7 +563,7 @@ class TestOpenHandsAppCommands:
             notify_mock = mock.MagicMock()
             oh_app.notify = notify_mock
 
-            oh_app._command_handler.handle_command("/new")
+            oh_app._command_new()
             await pilot.pause()
 
             # Verify dynamic widget was removed
@@ -596,7 +596,7 @@ class TestOpenHandsAppCommands:
             notify_mock = mock.MagicMock()
             oh_app.notify = notify_mock
 
-            oh_app._command_handler.handle_command("/new")
+            oh_app._command_new()
             await pilot.pause()
 
             # Verify splash conversation widget contains the new conversation ID
@@ -629,7 +629,7 @@ class TestOpenHandsAppCommands:
                 len(panels) > 0 and panels.first().display if len(panels) > 0 else False
             )
 
-            oh_app._command_handler.handle_command("/history")
+            oh_app._command_history()
             await pilot.pause()
 
             # Panel should now be visible
@@ -638,7 +638,7 @@ class TestOpenHandsAppCommands:
             assert panels.first().display is True
 
             # Toggle again - should hide
-            oh_app._command_handler.handle_command("/history")
+            oh_app._command_history()
             await pilot.pause()
 
             panels = oh_app.query(HistorySidePanel)
@@ -675,14 +675,14 @@ class TestOpenHandsAppCommands:
             oh_app = cast(OpenHandsApp, pilot.app)
             original_id = oh_app.conversation_id
 
-            oh_app._command_handler.handle_command("/history")
+            oh_app._command_history()
             await pilot.pause()
 
             panel = oh_app.query_one(HistorySidePanel)
             items_before = panel.query(HistoryItem)
             count_before = len(items_before)
 
-            oh_app._command_handler.handle_command("/new")
+            oh_app._command_new()
             await pilot.pause()
 
             assert oh_app.conversation_id != original_id
@@ -733,7 +733,7 @@ class TestOpenHandsAppCommands:
 
             oh_app._conversation_switcher.switch_to = mock_switch  # type: ignore[method-assign]
 
-            oh_app._command_handler.handle_command("/history")
+            oh_app._command_history()
             await pilot.pause()
 
             panel = oh_app.query_one(HistorySidePanel)

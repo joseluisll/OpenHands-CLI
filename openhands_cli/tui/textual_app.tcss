@@ -15,6 +15,7 @@ Screen {
     color: $foreground;
     overflow-y: auto;
     scrollbar-size-vertical: 1;
+    /* Allow docked children (input_area) to position relative to viewport */
 }
 
 #splash_content {
