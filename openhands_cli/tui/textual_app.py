@@ -428,9 +428,7 @@ class OpenHandsApp(CollapsibleNavigationMixin, App):
         self.is_ui_initialized = True
 
     def create_conversation_runner(
-        self,
-        conversation_id: uuid.UUID | None = None,
-        visualizer: ConversationVisualizer | None = None,
+        self, conversation_id: uuid.UUID | None = None
     ) -> ConversationRunner:
         """Create a ConversationRunner for a given conversation id.
 
@@ -447,7 +445,7 @@ class OpenHandsApp(CollapsibleNavigationMixin, App):
 
         # Initialize conversation runner with visualizer that can add widgets.
         # Skip user messages since we display them immediately in the UI.
-        conversation_visualizer = visualizer or ConversationVisualizer(
+        conversation_visualizer = ConversationVisualizer(
             self.main_display, self, skip_user_messages=True, name="OpenHands Agent"
         )
 

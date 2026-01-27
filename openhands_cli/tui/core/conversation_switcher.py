@@ -21,7 +21,6 @@ from textual.widgets import Static
 from openhands_cli.theme import OPENHANDS_THEME
 from openhands_cli.tui.content.splash import get_conversation_text
 from openhands_cli.tui.modals import SwitchConversationModal
-from openhands_cli.tui.widgets.richlog_visualizer import ConversationVisualizer
 
 
 if TYPE_CHECKING:
@@ -120,18 +119,13 @@ class ConversationSwitcher:
         # Show a persistent loading notification and mark switching in progress
         self._show_loading()
 
-        # Create visualizer on UI thread (captures correct main thread id)
-        visualizer = ConversationVisualizer(
-            self.app.main_display, self.app, skip_user_messages=True
-        )
-
         def _worker() -> None:
             if pre_switch_action:
                 try:
                     pre_switch_action()
                 except Exception:
                     pass  # Don't block switch on pre-action failure
-            self._switch_thread(target_id, visualizer)
+            self._switch_thread(target_id)
 
         self.app.run_worker(
             _worker,
@@ -224,20 +218,14 @@ class ConversationSwitcher:
         self.app.input_field.disabled = False
         self.app.input_field.focus_input()
 
-    def _switch_thread(
-        self,
-        target_id: uuid.UUID,
-        visualizer: ConversationVisualizer,
-    ) -> None:
+    def _switch_thread(self, target_id: uuid.UUID) -> None:
         """Background thread worker for switching conversations."""
         try:
             # Prepare UI first (on main thread)
             self.app.call_from_thread(self._prepare_ui, target_id)
 
             # Create conversation runner (loads from disk)
-            runner = self.app.create_conversation_runner(
-                conversation_id=target_id, visualizer=visualizer
-            )
+            runner = self.app.create_conversation_runner(conversation_id=target_id)
 
             # Finalize on UI thread
             self.app.call_from_thread(self._finish_switch, runner, target_id)
