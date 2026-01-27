@@ -53,7 +53,7 @@ class HistoryMessagesTestApp(App):
 async def test_history_panel_updates_from_state_manager(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """Test that the history panel responds to StateManager state changes."""
+    """Test that the history panel responds to AppState state changes."""
     # Stub local conversations list.
     base_id = uuid.uuid4().hex
     conversations = [
@@ -75,7 +75,7 @@ async def test_history_panel_updates_from_state_manager(
         list_container = panel.query_one("#history-list", VerticalScroll)
         assert len(list_container.query(HistoryItem)) == 1
 
-        # Update conversation_id via StateManager (simulating new conversation)
+        # Update conversation_id via AppState (simulating new conversation)
         new_id = uuid.uuid4()
         app.state_manager.conversation_id = new_id
         await pilot.pause()
@@ -92,7 +92,7 @@ async def test_history_panel_updates_from_state_manager(
         ]
         assert len(placeholder_items) == 1
 
-        # Update title via StateManager
+        # Update title via AppState
         app.state_manager.conversation_title = "first message"
         await pilot.pause()
 

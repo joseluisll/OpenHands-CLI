@@ -226,7 +226,7 @@ class TestOpenHandsAppCommands:
         """`/confirm` should open ConfirmationSettingsModal.
 
         Note: The app now reads the policy from state_manager.confirmation_policy
-        (StateManager owns the policy), not from conversation_runner.
+        (AppState owns the policy), not from conversation_runner.
         """
         monkeypatch.setattr(
             SettingsScreen,
@@ -602,6 +602,8 @@ class TestOpenHandsAppCommands:
             # Verify splash conversation widget contains the new conversation ID
             splash_conversation = oh_app.query_one("#splash_conversation", Static)
             # The content should contain the new conversation ID hex
+            # conversation_id is always set during app initialization
+            assert oh_app.conversation_id is not None
             assert oh_app.conversation_id.hex in str(splash_conversation.content)
 
     @pytest.mark.asyncio

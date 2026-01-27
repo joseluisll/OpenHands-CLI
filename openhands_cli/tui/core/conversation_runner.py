@@ -224,10 +224,10 @@ class ConversationRunner:
             # Pause the conversation for later resumption
             self.conversation.pause()
         elif decision == UserConfirmation.ALWAYS_PROCEED:
-            # Accept actions and change policy to NeverConfirm via StateManager
+            # Accept actions and change policy to NeverConfirm via AppState
             self._app_state.set_confirmation_policy(NeverConfirm())
         elif decision == UserConfirmation.CONFIRM_RISKY:
-            # Accept actions and change policy to ConfirmRisky via StateManager
+            # Accept actions and change policy to ConfirmRisky via AppState
             self._app_state.set_confirmation_policy(ConfirmRisky())
 
         # For ACCEPT and policy-changing decisions, we continue normally
@@ -288,7 +288,7 @@ class ConversationRunner:
             )
 
     def _update_run_status(self, is_running: bool) -> None:
-        """Update the running status via StateManager."""
+        """Update the running status via AppState."""
         self._running = is_running
         self._app_state.set_running(is_running)
 

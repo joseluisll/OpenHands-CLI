@@ -241,10 +241,10 @@ class TestHeadlessAppBehavior:
 
     Note: Tests for _on_conversation_state_changed were removed as that method
     no longer exists. The headless exit behavior is now handled through
-    StateManager's watch_running and ConversationFinished message handling.
+    AppState's watch_running and ConversationFinished message handling.
     """
 
-    pass  # Placeholder - add new tests for StateManager-based headless behavior if needed
+    pass  # Placeholder - add new tests for AppState-based headless behavior if needed
 
 
 class TestPrintConversationSummary:

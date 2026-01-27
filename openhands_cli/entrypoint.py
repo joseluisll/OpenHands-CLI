@@ -224,6 +224,8 @@ def main() -> None:
                 critic_disabled=critic_disabled,
             )
             console.print("Goodbye! 👋", style=OPENHANDS_THEME.success)
+            # conversation_id is always set during app initialization
+            assert conversation_id is not None
             console.print(
                 f"Conversation ID: {conversation_id.hex}",
                 style=OPENHANDS_THEME.accent,

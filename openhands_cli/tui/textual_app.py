@@ -384,6 +384,8 @@ class OpenHandsApp(CollapsibleNavigationMixin, App):
             pass
 
         # Get structured splash content
+        # conversation_id is always set during app initialization
+        assert self.conversation_id is not None
         splash_content = get_splash_content(
             conversation_id=self.conversation_id.hex,
             theme=OPENHANDS_THEME,
@@ -432,14 +434,16 @@ class OpenHandsApp(CollapsibleNavigationMixin, App):
     ) -> ConversationRunner:
         """Create a ConversationRunner for a given conversation id.
 
-        StateManager owns the confirmation policy, so we don't pass it here.
-        The runner will attach the conversation to StateManager, which syncs the policy.
+        AppState owns the confirmation policy, so we don't pass it here.
+        The runner will attach the conversation to AppState, which syncs the policy.
 
         Args:
             conversation_id: Conversation id to use. Defaults to current id.
             visualizer: Optional visualizer. If not provided, a new one is created.
         """
+        # conversation_id is always set during app initialization
         conversation_uuid = conversation_id or self.conversation_id
+        assert conversation_uuid is not None
 
         # Initialize conversation runner with visualizer that can add widgets.
         # Skip user messages since we display them immediately in the UI.

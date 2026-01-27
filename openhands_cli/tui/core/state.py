@@ -115,7 +115,7 @@ class AppState(Container):
         # Initialize internal state BEFORE calling super().__init__
         # because reactive watchers may be triggered during initialization
         self._conversation_start_time: float | None = None
-        self._conversation: "BaseConversation | None" = None
+        self._conversation: BaseConversation | None = None
         self._timer = None
         self._main_thread_id = threading.current_thread().ident
 
@@ -197,8 +197,8 @@ class AppState(Container):
 
     def watch_confirmation_policy(
         self,
-        old_value: ConfirmationPolicyBase,
-        new_value: ConfirmationPolicyBase,
+        _old_value: ConfirmationPolicyBase,
+        _new_value: ConfirmationPolicyBase,
     ) -> None:
         """React to confirmation policy changes - sync to attached conversation."""
         self._sync_policy_to_conversation()
@@ -300,7 +300,3 @@ class AppState(Container):
         self.conversation_title = None
         self._conversation_start_time = None
         self._conversation = None
-
-
-# Backwards compatibility alias
-StateManager = AppState

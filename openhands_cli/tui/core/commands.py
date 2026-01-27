@@ -207,11 +207,11 @@ class CommandHandler:
             ConfirmationSettingsModal,
         )
 
-        # Get current confirmation policy from StateManager (it owns the policy)
+        # Get current confirmation policy from AppState (it owns the policy)
         current_policy = self._app.app_state.confirmation_policy
 
         # Show the confirmation settings modal
-        # Pass StateManager's set_confirmation_policy directly - modal handles notification
+        # Pass AppState's set_confirmation_policy directly - modal handles notification
         confirmation_modal = ConfirmationSettingsModal(
             current_policy=current_policy,
             on_policy_selected=self._app.app_state.set_confirmation_policy,

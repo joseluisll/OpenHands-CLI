@@ -6,7 +6,7 @@ This class encapsulates all the complexity of switching between conversations:
 - UI preparation and finalization
 - Error handling
 
-State changes are made via StateManager, which UI components watch for updates.
+State changes are made via AppState, which UI components watch for updates.
 """
 
 from __future__ import annotations
@@ -144,7 +144,7 @@ class ConversationSwitcher:
 
     def _show_loading(self) -> None:
         """Show a loading notification that can be dismissed after the switch."""
-        # Mark switching in progress via StateManager
+        # Mark switching in progress via AppState
         self.app.app_state.start_switching()
 
         # Dismiss any previous loading notification
@@ -173,14 +173,14 @@ class ConversationSwitcher:
             self.app._unnotify(self._loading_notification)
         finally:
             self._loading_notification = None
-            # Mark switching complete via StateManager
+            # Mark switching complete via AppState
             self.app.app_state.finish_switching()
 
     def _prepare_ui(self, conversation_id: uuid.UUID) -> None:
         """Prepare UI for switching conversations (runs on the UI thread)."""
         app = self.app
 
-        # Set the conversation ID immediately (both app and StateManager)
+        # Set the conversation ID immediately (both app and AppState)
         app.conversation_id = conversation_id
         app.conversation_runner = None
 
@@ -213,7 +213,8 @@ class ConversationSwitcher:
         # Update AppState - UI components will react automatically
         # conversation_id property delegates to app_state
         self.app.conversation_id = target_id
-        self.app.app_state.reset_conversation_state()  # Reset running state, metrics, etc.
+        # Reset running state, metrics, etc.
+        self.app.app_state.reset_conversation_state()
 
         self.app.notify(
             title="Switched",

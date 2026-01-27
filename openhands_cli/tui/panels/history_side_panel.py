@@ -207,9 +207,7 @@ class HistorySidePanel(Container):
 
         # Watch AppState for changes
         self.watch(app_state, "conversation_id", self._on_conversation_id_changed)
-        self.watch(
-            app_state, "conversation_title", self._on_conversation_title_changed
-        )
+        self.watch(app_state, "conversation_title", self._on_conversation_title_changed)
         self.watch(app_state, "is_switching", self._on_is_switching_changed)
 
         # Load and render conversations
@@ -250,7 +248,7 @@ class HistorySidePanel(Container):
         was_switching = self._previous_is_switching
         self._previous_is_switching = is_switching
 
-        # If switch was cancelled (was switching, now not, but conversation didn't change)
+        # If switch was cancelled (switching ended but conversation didn't change)
         if was_switching and not is_switching:
             # The conversation_id watcher handles successful switches,
             # so we only need to handle cancelled switches here
