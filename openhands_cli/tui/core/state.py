@@ -15,7 +15,6 @@ from openhands.sdk.security.confirmation_policy import (
     ConfirmationPolicyBase,
     NeverConfirm,
 )
-from openhands.sdk.security.llm_analyzer import LLMSecurityAnalyzer
 
 
 if TYPE_CHECKING:
@@ -241,7 +240,9 @@ class StateManager(Container):
 
         try:
             self._conversation.set_confirmation_policy(self.confirmation_policy)
-            logger.debug(f"Synced confirmation policy: {type(self.confirmation_policy).__name__}")
+            logger.debug(
+                f"Synced confirmation policy: {type(self.confirmation_policy).__name__}"
+            )
         except Exception as e:
             logger.error(f"Failed to sync confirmation policy: {e}")
 

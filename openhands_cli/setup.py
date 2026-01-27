@@ -7,15 +7,16 @@ from rich.console import Console
 from openhands.sdk import Agent, AgentContext, BaseConversation, Conversation, Workspace
 from openhands.sdk.context import Skill
 from openhands.sdk.event.base import Event
+from openhands.sdk.security.confirmation_policy import (
+    ConfirmationPolicyBase,
+)
 from openhands.sdk.security.llm_analyzer import LLMSecurityAnalyzer
 
 # Register tools on import
 from openhands_cli.locations import CONVERSATIONS_DIR, WORK_DIR
 from openhands_cli.stores import AgentStore
 from openhands_cli.tui.widgets.richlog_visualizer import ConversationVisualizer
-from openhands.sdk.security.confirmation_policy import (
-    ConfirmationPolicyBase,
-)
+
 
 class MissingAgentSpec(Exception):
     """Raised when agent specification is not found or invalid."""

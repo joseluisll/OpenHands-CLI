@@ -15,6 +15,7 @@ from textual_autocomplete import DropdownItem
 
 from openhands_cli.theme import OPENHANDS_THEME
 
+
 if TYPE_CHECKING:
     from openhands_cli.tui.textual_app import OpenHandsApp
 
@@ -147,7 +148,9 @@ class CommandHandler:
 
     def _handle_confirm(self) -> None:
         """Handle the /confirm command to show confirmation settings modal."""
-        from openhands_cli.tui.modals.confirmation_modal import ConfirmationSettingsModal
+        from openhands_cli.tui.modals.confirmation_modal import (
+            ConfirmationSettingsModal,
+        )
 
         # Get current confirmation policy from StateManager (it owns the policy)
         current_policy = self._app.state_manager.confirmation_policy

@@ -16,8 +16,6 @@ from typing import ClassVar
 from textual import events, getters, on
 from textual.app import App, ComposeResult, SystemCommand
 from textual.containers import Horizontal, VerticalScroll
-from textual.css.query import NoMatches
-from textual.message import Message
 from textual.screen import Screen
 from textual.widgets import Footer, Input, Static, TextArea
 from textual_autocomplete import AutoComplete
@@ -497,7 +495,6 @@ class OpenHandsApp(CollapsibleNavigationMixin, App):
         else:
             # Handle regular messages with conversation runner
             await self._handle_user_message(content)
-                    
 
     async def _handle_user_message(self, user_message: str) -> None:
         """Handle regular user messages with the conversation runner."""

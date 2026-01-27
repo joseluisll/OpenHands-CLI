@@ -19,6 +19,7 @@ from textual.css.query import NoMatches
 from textual.widgets import Static
 
 from openhands_cli.conversations.models import ConversationMetadata
+from openhands_cli.conversations.store.local import LocalFileStore
 from openhands_cli.theme import OPENHANDS_THEME
 from openhands_cli.tui.core.messages import SwitchConversationRequest
 from openhands_cli.tui.panels.history_panel_style import HISTORY_PANEL_STYLE
@@ -145,6 +146,7 @@ class HistorySidePanel(Container):
         self.selected_conversation_id: uuid.UUID | None = None
         self._local_rows: list[ConversationMetadata] = []
         self._previous_is_switching: bool = False
+        self._store = LocalFileStore()
 
     @classmethod
     def toggle(
@@ -247,12 +249,8 @@ class HistorySidePanel(Container):
 
     def refresh_content(self) -> None:
         """Reload conversations and render the list."""
-        self._local_rows = self._load_local_rows()
+        self._local_rows = self._store.list_conversations()
         self._render_list()
-
-    def _load_local_rows(self) -> list[ConversationMetadata]:
-        """Load local conversation rows."""
-        return self._oh_app._conversation_manager.list_conversations()
 
     def _render_list(self) -> None:
         """Render the conversation list."""

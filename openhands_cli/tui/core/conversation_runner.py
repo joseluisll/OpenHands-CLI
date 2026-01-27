@@ -1,11 +1,4 @@
-"""Conversation runner with confirmation mode support for the refactored UI.
-
-This module uses the reactive StateManager pattern for state management.
-UI components bind to StateManager properties via data_bind() for automatic updates.
-
-StateManager OWNS the confirmation policy. ConversationRunner delegates all policy
-operations to StateManager, which automatically syncs to the conversation.
-"""
+"""Conversation runner with confirmation mode support."""
 
 import asyncio
 import uuid
@@ -28,7 +21,6 @@ from openhands.sdk.conversation.state import (
 )
 from openhands.sdk.event.base import Event
 from openhands.sdk.security.confirmation_policy import (
-    ConfirmationPolicyBase,
     ConfirmRisky,
     NeverConfirm,
 )
@@ -98,12 +90,7 @@ class ConversationRunner:
 
     @property
     def is_confirmation_mode_active(self) -> bool:
-        """Check if confirmation mode is currently active (delegates to StateManager)."""
         return self._state_manager.is_confirmation_active
-
-    def get_confirmation_policy(self) -> ConfirmationPolicyBase:
-        """Get the current confirmation policy (from StateManager)."""
-        return self._state_manager.confirmation_policy
 
     async def queue_message(self, user_input: str) -> None:
         """Queue a message for a running conversation"""

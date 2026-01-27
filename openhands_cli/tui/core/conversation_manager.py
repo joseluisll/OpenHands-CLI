@@ -15,7 +15,6 @@ from typing import TYPE_CHECKING
 
 from textual.widgets import Static
 
-from openhands_cli.conversations.models import ConversationMetadata
 from openhands_cli.conversations.protocols import ConversationStore
 from openhands_cli.theme import OPENHANDS_THEME
 from openhands_cli.tui.content.splash import get_conversation_text
@@ -128,7 +127,3 @@ class ConversationManager:
         """
         # Update StateManager - UI components watching conversation_title will react
         self.app.state_manager.set_conversation_title(title)
-
-    def list_conversations(self, limit: int = 100) -> list[ConversationMetadata]:
-        """List conversations from the store."""
-        return self.store.list_conversations(limit=limit)
