@@ -7,11 +7,12 @@ from child to parent, allowing ancestor widgets to handle them.
 Message Flow:
     InputField
         ↓
-    ConversationView(#input_area)
-        ↓
     MainDisplay(#main_display)  ← Handles UserInputSubmitted (renders message)
+                                ← Handles SlashCommandSubmitted (posts domain messages)
         ↓
-    OpenHandsApp                ← Handles SlashCommandSubmitted (executes command)
+    ConversationView            ← Handles NewConversationRequested
+        ↓
+    OpenHandsApp                ← Handles app-level concerns (modals, notifications)
 """
 
 from pydantic.dataclasses import dataclass
@@ -44,3 +45,13 @@ class SlashCommandSubmitted(Message):
     def full_command(self) -> str:
         """Return the full command string with leading slash."""
         return f"/{self.command}"
+
+
+class NewConversationRequested(Message):
+    """Message sent when user requests a new conversation (via /new command).
+
+    This message is posted by MainDisplay and handled by ConversationView,
+    which owns the conversation lifecycle and state.
+    """
+
+    pass

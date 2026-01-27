@@ -29,10 +29,15 @@ import uuid
 
 from textual import on
 from textual.containers import VerticalScroll
+from textual.reactive import var
 from textual.widgets import Static
 
 from openhands_cli.tui.core.commands import show_help
-from openhands_cli.tui.messages import SlashCommandSubmitted, UserInputSubmitted
+from openhands_cli.tui.messages import (
+    NewConversationRequested,
+    SlashCommandSubmitted,
+    UserInputSubmitted,
+)
 
 
 class MainDisplay(VerticalScroll):
@@ -54,7 +59,36 @@ class MainDisplay(VerticalScroll):
         InputField → ConversationView → MainDisplay
         - UserInputSubmitted: Render message, then send to agent via App
         - SlashCommandSubmitted: Execute command (stop bubbling)
+
+    Reactive Properties (via data_bind from ConversationView):
+        - running: Whether a conversation is currently running
+        - conversation_id: Current conversation ID (clears content on change)
     """
+
+    # Reactive properties bound via data_bind() to ConversationView
+    running: var[bool] = var(False)
+    conversation_id: var[uuid.UUID] = var(uuid.uuid4)
+
+    def watch_conversation_id(
+        self, old_id: uuid.UUID, new_id: uuid.UUID
+    ) -> None:
+        """Clear dynamic content when conversation changes.
+
+        When conversation_id changes, removes all dynamically added widgets
+        (user messages, agent responses, etc.) while preserving:
+        - SplashContent (#splash_content) - re-renders via its own binding
+        - InputAreaContainer (#input_area) - always visible at bottom
+        """
+        if old_id == new_id:
+            return
+
+        # Remove all children except permanent widgets
+        for widget in list(self.children):
+            if widget.id not in ("splash_content", "input_area"):
+                widget.remove()
+
+        # Scroll to top to show splash screen
+        self.scroll_home(animate=False)
 
     @on(UserInputSubmitted)
     async def on_user_input_submitted(self, event: UserInputSubmitted) -> None:
@@ -111,57 +145,16 @@ class MainDisplay(VerticalScroll):
         show_help(self)
 
     def _command_new(self) -> None:
-        """Handle the /new command to start a new conversation."""
-        from openhands_cli.tui.textual_app import OpenHandsApp
+        """Handle the /new command to start a new conversation.
 
-        app: OpenHandsApp = self.app  # type: ignore[assignment]
-
-        # Check if a conversation is currently running
-        if app.conversation_runner and app.conversation_runner.is_running:
-            app.notify(
-                title="New Conversation Error",
-                message="Cannot start a new conversation while one is running. "
-                "Please wait for the current conversation to complete or pause it.",
-                severity="error",
-            )
-            return
-
-        # Create a new conversation via store
-        new_id_str = app._store.create()
-        new_id = uuid.UUID(new_id_str)
-
-        # Update ConversationView (single source of truth)
-        app.conversation_id = new_id
-        app.app_state.reset_conversation_state()
-
-        # Reset the conversation runner
-        app.conversation_runner = None
-
-        # Remove any existing confirmation panel
-        if app.confirmation_panel:
-            app.confirmation_panel.remove()
-            app.confirmation_panel = None
-
-        # Clear all dynamically added widgets from main_display
-        # Keep only the splash widgets and input_area
-        widgets_to_remove = [
-            w
-            for w in self.children
-            if not (w.id or "").startswith("splash_") and w.id != "input_area"
-        ]
-        for widget in widgets_to_remove:
-            widget.remove()
-
-        # Note: splash_conversation auto-updates via data binding to conversation_id
-        # Scroll to top to show the splash screen
-        self.scroll_home(animate=False)
-
-        # Notify user
-        app.notify(
-            title="New Conversation",
-            message="Started a new conversation",
-            severity="information",
-        )
+        Posts NewConversationRequested message to ConversationView which owns
+        the conversation lifecycle. ConversationView will:
+        - Check if conversation is running
+        - Create new conversation ID
+        - Reset state
+        - Clear UI
+        """
+        self.post_message(NewConversationRequested())
 
     def _command_history(self) -> None:
         """Handle the /history command to show conversation history panel."""

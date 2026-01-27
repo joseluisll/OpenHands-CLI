@@ -477,7 +477,11 @@ class TestOpenHandsAppCommands:
             notify_mock = mock.MagicMock()
             oh_app.notify = notify_mock
 
+            # Call _command_new which posts NewConversationRequested message
             oh_app.main_display._command_new()
+
+            # Process the message
+            await pilot.pause()
 
             # Verify a new conversation ID was generated
             assert oh_app.conversation_id != original_conversation_id
@@ -509,10 +513,8 @@ class TestOpenHandsAppCommands:
         async with app.run_test() as pilot:
             oh_app = cast(OpenHandsApp, pilot.app)
 
-            # Create a mock conversation runner that is running
-            dummy_runner = mock.MagicMock()
-            dummy_runner.is_running = True
-            oh_app.conversation_runner = dummy_runner
+            # Set running state directly on ConversationView (source of truth)
+            oh_app.conversation_view.running = True
 
             # Store the original conversation ID
             original_conversation_id = oh_app.conversation_id
@@ -521,7 +523,11 @@ class TestOpenHandsAppCommands:
             notify_mock = mock.MagicMock()
             oh_app.notify = notify_mock
 
+            # Call _command_new which posts NewConversationRequested message
             oh_app.main_display._command_new()
+
+            # Process the message
+            await pilot.pause()
 
             # Verify conversation ID was NOT changed
             assert oh_app.conversation_id == original_conversation_id

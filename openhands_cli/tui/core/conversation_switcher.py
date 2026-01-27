@@ -171,7 +171,9 @@ class ConversationSwitcher:
         """Prepare UI for switching conversations (runs on the UI thread)."""
         app = self.app
 
-        # Set the conversation ID immediately (both app and ConversationView)
+        # Set the conversation ID - triggers reactive updates:
+        # - MainDisplay.watch_conversation_id() clears dynamic content
+        # - SplashContent.watch_conversation_id() re-renders
         app.conversation_id = conversation_id
         app.conversation_runner = None
 
@@ -179,17 +181,6 @@ class ConversationSwitcher:
         if app.confirmation_panel:
             app.confirmation_panel.remove()
             app.confirmation_panel = None
-
-        # Clear dynamically added widgets, keep splash widgets
-        widgets_to_remove = [
-            w
-            for w in app.main_display.children
-            if not (w.id or "").startswith("splash_")
-        ]
-        for widget in widgets_to_remove:
-            widget.remove()
-
-        # Note: splash_conversation auto-updates via data binding to conversation_id
 
     def _finish_switch(self, runner, target_id: uuid.UUID) -> None:
         """Finalize conversation switch (runs on the UI thread)."""

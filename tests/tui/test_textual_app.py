@@ -177,57 +177,18 @@ class TestConversationSwitcher:
 class TestMainDisplayCommands:
     """Tests for MainDisplay command methods."""
 
-    def test_command_new_resets_conversation(self):
-        """_command_new resets conversation state and updates ConversationView."""
+    def test_command_new_posts_message(self):
+        """_command_new posts NewConversationRequested message."""
+        from openhands_cli.tui.messages import NewConversationRequested
         from openhands_cli.tui.widgets import MainDisplay
 
         main_display = Mock(spec=MainDisplay)
-        main_display.children = []  # Empty children list
-
-        mock_app = Mock()
-        mock_app.conversation_runner = None
-        mock_app.confirmation_panel = None
-        mock_app.notify = Mock()
-        mock_app.app_state = Mock()
-        mock_app._store = Mock()
-        new_id = uuid.uuid4().hex
-        mock_app._store.create.return_value = new_id
-
-        # conversation_id property delegates to app_state
-        type(mock_app).conversation_id = property(
-            lambda self: self.app_state.conversation_id,
-            lambda self, v: setattr(self.app_state, "conversation_id", v),
-        )
-
-        # Set up the app and query_one for MainDisplay
-        main_display.app = mock_app
-        main_display.query_one = Mock(return_value=Mock())
-        main_display.scroll_home = Mock()
+        main_display.post_message = Mock()
 
         # Call the real implementation
         MainDisplay._command_new(main_display)
 
-        # Verify ConversationView was updated
-        assert mock_app.app_state.conversation_id == uuid.UUID(new_id)
-        mock_app.app_state.reset_conversation_state.assert_called_once()
-        mock_app.notify.assert_called_once()
-
-    def test_command_new_blocked_when_running(self):
-        """_command_new shows error when a conversation is running."""
-        from openhands_cli.tui.widgets import MainDisplay
-
-        main_display = Mock(spec=MainDisplay)
-
-        mock_app = Mock()
-        mock_app.conversation_runner = Mock()
-        mock_app.conversation_runner.is_running = True
-        mock_app.notify = Mock()
-
-        main_display.app = mock_app
-
-        # Call the real implementation
-        MainDisplay._command_new(main_display)
-
-        mock_app.notify.assert_called_once()
-        call_kwargs = mock_app.notify.call_args[1]
-        assert call_kwargs["severity"] == "error"
+        # Verify message was posted
+        main_display.post_message.assert_called_once()
+        posted_message = main_display.post_message.call_args[0][0]
+        assert isinstance(posted_message, NewConversationRequested)

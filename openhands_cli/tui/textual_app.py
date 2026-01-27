@@ -73,8 +73,9 @@ from openhands_cli.tui.widgets.collapsible import (
     CollapsibleNavigationMixin,
     CollapsibleTitle,
 )
-from openhands_cli.user_actions.types import UserConfirmation
 from openhands_cli.tui.widgets.splash import SplashContent
+from openhands_cli.user_actions.types import UserConfirmation
+
 
 class OpenHandsApp(CollapsibleNavigationMixin, App):
     """A minimal textual app for OpenHands CLI with scrollable main display."""
@@ -406,7 +407,6 @@ class OpenHandsApp(CollapsibleNavigationMixin, App):
         content initialization is a direct method call, not a reactive
         state change, because it's a one-time operation.
         """
-        
 
         splash_content = self.query_one("#splash_content", SplashContent)
 

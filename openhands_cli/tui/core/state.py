@@ -16,6 +16,7 @@ import time
 import uuid
 from typing import TYPE_CHECKING, Any
 
+from textual import on
 from textual.containers import Container
 from textual.message import Message
 from textual.reactive import var
@@ -26,6 +27,7 @@ from openhands.sdk.security.confirmation_policy import (
     ConfirmationPolicyBase,
     NeverConfirm,
 )
+from openhands_cli.tui.messages import NewConversationRequested
 
 
 if TYPE_CHECKING:
@@ -159,8 +161,13 @@ class ConversationView(Container):
         )
         from openhands_cli.tui.widgets.user_input.input_field import InputField
 
-        # MainDisplay handles UserInputSubmitted to render user messages
-        with MainDisplay(id="main_display"):
+        # MainDisplay handles UserInputSubmitted and SlashCommandSubmitted
+        # - running: bound for checking conversation state
+        # - conversation_id: bound for clearing content on conversation change
+        with MainDisplay(id="main_display").data_bind(
+            running=ConversationView.running,
+            conversation_id=ConversationView.conversation_id,
+        ):
             # SplashContent contains all splash widgets
             # - conversation_id is bound reactively for conversation switching
             # - initialize() is called by OpenHandsApp for one-time setup
@@ -403,3 +410,61 @@ class ConversationView(Container):
         )
 
         return runner
+
+    # ---- Message Handlers ----
+
+    @on(NewConversationRequested)
+    def _on_new_conversation_requested(
+        self, event: NewConversationRequested
+    ) -> None:
+        """Handle request to start a new conversation.
+
+        This is triggered by the /new command from MainDisplay.
+        ConversationView owns conversation lifecycle, so it:
+        1. Checks if a conversation is running
+        2. Creates a new conversation ID
+        3. Resets state
+        4. Sets new conversation_id (MainDisplay clears itself reactively)
+        5. Notifies the user
+        """
+        event.stop()
+
+        from openhands_cli.conversations.store.local import LocalFileStore
+        from openhands_cli.tui.textual_app import OpenHandsApp
+
+        app: OpenHandsApp = self.app  # type: ignore[assignment]
+
+        # Check if a conversation is currently running
+        if self.running:
+            app.notify(
+                title="New Conversation Error",
+                message="Cannot start a new conversation while one is running. "
+                "Please wait for the current conversation to complete or pause it.",
+                severity="error",
+            )
+            return
+
+        # Create a new conversation via store
+        store = LocalFileStore()
+        new_id_str = store.create()
+        new_id = uuid.UUID(new_id_str)
+
+        # Reset state (this also clears conversation_runner)
+        self.reset_conversation_state()
+
+        # Set new conversation ID - triggers:
+        # - MainDisplay.watch_conversation_id() clears dynamic content
+        # - SplashContent.watch_conversation_id() re-renders
+        self.conversation_id = new_id
+
+        # Remove any existing confirmation panel
+        if app.confirmation_panel:
+            app.confirmation_panel.remove()
+            app.confirmation_panel = None
+
+        # Notify user
+        app.notify(
+            title="New Conversation",
+            message="Started a new conversation",
+            severity="information",
+        )
