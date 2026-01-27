@@ -6,8 +6,6 @@ and the logic for handling command execution.
 
 from __future__ import annotations
 
-import asyncio
-import uuid
 from typing import TYPE_CHECKING
 
 from textual.containers import VerticalScroll
@@ -15,11 +13,10 @@ from textual.widgets import Static
 from textual_autocomplete import DropdownItem
 
 from openhands_cli.theme import OPENHANDS_THEME
-from openhands_cli.tui.content.splash import get_conversation_text
 
 
 if TYPE_CHECKING:
-    from openhands_cli.tui.textual_app import OpenHandsApp
+    pass
 
 
 # Available commands with descriptions after the command

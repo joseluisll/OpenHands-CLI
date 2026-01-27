@@ -67,16 +67,18 @@ class TestHistoryIntegration:
     """Unit tests for history panel wiring and conversation switching."""
 
     def test_history_command_calls_toggle(self):
-        """`/history` command handler delegates to action_toggle_history."""
-        from openhands_cli.tui.core.commands import CommandHandler
+        """`/history` command in MainDisplay delegates to action_toggle_history."""
+        from openhands_cli.tui.widgets import MainDisplay
 
-        app = Mock()
-        app.action_toggle_history = Mock()
+        main_display = Mock(spec=MainDisplay)
+        mock_app = Mock()
+        mock_app.action_toggle_history = Mock()
+        main_display.app = mock_app
 
-        handler = CommandHandler(app)
-        handler._handle_history()
+        # Call the real implementation
+        MainDisplay._command_history(main_display)
 
-        app.action_toggle_history.assert_called_once()
+        mock_app.action_toggle_history.assert_called_once()
 
     def test_action_toggle_history_calls_panel_toggle(self, monkeypatch):
         """action_toggle_history calls HistorySidePanel.toggle with correct args."""
@@ -163,51 +165,60 @@ class TestConversationSwitcher:
         assert "already active" in call_kwargs["message"].lower()
 
 
-class TestCommandHandler:
-    """Tests for CommandHandler (replaces ConversationManager tests)."""
+class TestMainDisplayCommands:
+    """Tests for MainDisplay command methods."""
 
-    def test_handle_new_resets_conversation(self):
-        """_handle_new resets conversation state and updates AppState."""
-        from openhands_cli.tui.core.commands import CommandHandler
+    def test_command_new_resets_conversation(self):
+        """_command_new resets conversation state and updates AppState."""
+        from openhands_cli.tui.widgets import MainDisplay
 
-        app = Mock()
-        app.conversation_runner = None
-        app.confirmation_panel = None
-        app.main_display = Mock()
-        app.main_display.children = []
-        app.query_one = Mock(return_value=Mock())
-        app.notify = Mock()
-        app.app_state = Mock()  # AppState is now used
-        app._store = Mock()
+        main_display = Mock(spec=MainDisplay)
+        main_display.children = []  # Empty children list
+
+        mock_app = Mock()
+        mock_app.conversation_runner = None
+        mock_app.confirmation_panel = None
+        mock_app.notify = Mock()
+        mock_app.app_state = Mock()
+        mock_app._store = Mock()
         new_id = uuid.uuid4().hex
-        app._store.create.return_value = new_id
+        mock_app._store.create.return_value = new_id
 
         # conversation_id property delegates to app_state
-        type(app).conversation_id = property(
+        type(mock_app).conversation_id = property(
             lambda self: self.app_state.conversation_id,
             lambda self, v: setattr(self.app_state, "conversation_id", v),
         )
 
-        handler = CommandHandler(app)
-        handler._handle_new()
+        # Set up the app and query_one for MainDisplay
+        main_display.app = mock_app
+        main_display.query_one = Mock(return_value=Mock())
+        main_display.scroll_home = Mock()
+
+        # Call the real implementation
+        MainDisplay._command_new(main_display)
 
         # Verify AppState was updated
-        assert app.app_state.conversation_id == uuid.UUID(new_id)
-        app.app_state.reset_conversation_state.assert_called_once()
-        app.notify.assert_called_once()
+        assert mock_app.app_state.conversation_id == uuid.UUID(new_id)
+        mock_app.app_state.reset_conversation_state.assert_called_once()
+        mock_app.notify.assert_called_once()
 
-    def test_handle_new_blocked_when_running(self):
-        """_handle_new shows error when a conversation is running."""
-        from openhands_cli.tui.core.commands import CommandHandler
+    def test_command_new_blocked_when_running(self):
+        """_command_new shows error when a conversation is running."""
+        from openhands_cli.tui.widgets import MainDisplay
 
-        app = Mock()
-        app.conversation_runner = Mock()
-        app.conversation_runner.is_running = True
-        app.notify = Mock()
+        main_display = Mock(spec=MainDisplay)
 
-        handler = CommandHandler(app)
-        handler._handle_new()
+        mock_app = Mock()
+        mock_app.conversation_runner = Mock()
+        mock_app.conversation_runner.is_running = True
+        mock_app.notify = Mock()
 
-        app.notify.assert_called_once()
-        call_kwargs = app.notify.call_args[1]
+        main_display.app = mock_app
+
+        # Call the real implementation
+        MainDisplay._command_new(main_display)
+
+        mock_app.notify.assert_called_once()
+        call_kwargs = mock_app.notify.call_args[1]
         assert call_kwargs["severity"] == "error"

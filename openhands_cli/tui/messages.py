@@ -15,30 +15,31 @@ Message Flow:
 """
 
 from pydantic.dataclasses import dataclass
-
 from textual.message import Message
 
 
 @dataclass
 class UserInputSubmitted(Message):
     """Message sent when user submits regular text input.
-    
+
     This message is handled by MainDisplay to render the user message,
     then bubbles to App to send to the agent.
     """
+
     content: str
 
 
 @dataclass
 class SlashCommandSubmitted(Message):
     """Message sent when user submits a slash command.
-    
+
     This message bubbles directly to App for command execution.
     MainDisplay ignores it (doesn't render commands as user messages).
     """
+
     command: str
     args: str = ""
-    
+
     @property
     def full_command(self) -> str:
         """Return the full command string with leading slash."""

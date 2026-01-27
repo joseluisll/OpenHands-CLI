@@ -1,7 +1,8 @@
 from __future__ import annotations
 
-from pydantic.dataclasses import dataclass
 from datetime import datetime
+
+from pydantic.dataclasses import dataclass
 
 
 @dataclass

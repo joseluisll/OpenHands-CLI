@@ -1,20 +1,28 @@
-"""Minimal textual app for OpenHands CLI migration.
+"""OpenHands CLI TUI application.
 
-This is the starting point for migrating from prompt_toolkit to textual.
-It creates a basic app with:
-- A scrollable main display (MainDisplay) that shows the splash screen initially
-- An Input widget at the bottom for user messages
-- A status line showing timer and work directory
-- The splash screen content scrolls off as new messages are added
+This is the main Textual application for the OpenHands CLI. The architecture
+separates concerns between App (shell/navigation) and MainDisplay (content/commands).
+
+Widget Hierarchy::
+
+    OpenHandsApp
+    └── Horizontal(#content_area)
+        └── MainDisplay(#main_display)  ← Handles commands + renders content
+            ├── Static (splash widgets)
+            ├── ... conversation widgets
+            └── AppState(#input_area)
+                └── InputField          ← Posts messages
+    └── Footer
 
 Message Flow:
-    InputField posts UserInputSubmitted or SlashCommandSubmitted
-        ↓
-    MainDisplay handles UserInputSubmitted (renders user message)
-        ↓
-    OpenHandsApp handles both messages:
-        - UserInputSubmitted → sends to agent
-        - SlashCommandSubmitted → executes command
+    InputField → AppState → MainDisplay
+        - UserInputSubmitted: MainDisplay renders, App sends to agent
+        - SlashCommandSubmitted: MainDisplay executes command (stops bubbling)
+
+Responsibilities:
+    - MainDisplay: Command execution, content rendering, scrolling
+    - OpenHandsApp: Screen/modal management, agent lifecycle, side panels
+    - AppState: Reactive state, input widgets, data binding
 """
 
 import asyncio
@@ -42,12 +50,11 @@ from openhands_cli.conversations.store.local import LocalFileStore
 from openhands_cli.locations import CONVERSATIONS_DIR
 from openhands_cli.stores import AgentStore, MissingEnvironmentVariablesError
 from openhands_cli.theme import OPENHANDS_THEME
-from openhands_cli.tui.content.splash import get_conversation_text, get_splash_content
+from openhands_cli.tui.content.splash import get_splash_content
 from openhands_cli.tui.core import AppState, ConversationFinished
-from openhands_cli.tui.core.commands import show_help
 from openhands_cli.tui.core.conversation_runner import ConversationRunner
 from openhands_cli.tui.core.conversation_switcher import ConversationSwitcher
-from openhands_cli.tui.messages import SlashCommandSubmitted, UserInputSubmitted
+from openhands_cli.tui.messages import UserInputSubmitted
 from openhands_cli.tui.modals import SettingsScreen
 from openhands_cli.tui.modals.exit_modal import ExitConfirmationModal
 from openhands_cli.tui.panels.confirmation_panel import InlineConfirmationPanel
@@ -528,31 +535,6 @@ class OpenHandsApp(CollapsibleNavigationMixin, App):
         # Handle regular messages with conversation runner
         await self._handle_user_message(event.content)
 
-    @on(SlashCommandSubmitted)
-    def on_slash_command_submitted(self, event: SlashCommandSubmitted) -> None:
-        command = event.command
-
-        if command == "help":
-            self._command_help()
-        elif command == "new":
-            self._command_new()
-        elif command == "history":
-            self._command_history()
-        elif command == "confirm":
-            self._command_confirm()
-        elif command == "condense":
-            self._command_condense()
-        elif command == "feedback":
-            self._command_feedback()
-        elif command == "exit":
-            self._command_exit()
-        else:
-            self.notify(
-                title="Command error",
-                message=f"Unknown command: /{command}",
-                severity="error",
-            )
-
     async def _handle_user_message(self, user_message: str) -> None:
         """Handle regular user messages with the conversation runner."""
         # Dismiss any pending critic feedback widgets when user sends a new message
@@ -591,123 +573,11 @@ class OpenHandsApp(CollapsibleNavigationMixin, App):
             self.main_display.scroll_end(animate=False)
 
     def action_request_quit(self) -> None:
-        """Action to handle Ctrl+Q key binding."""
-        self._command_exit()
+        """Action to handle Ctrl+Q key binding.
 
-    # ---- Command Methods ----
-    # These methods implement slash commands. They are called by
-    # on_slash_command_submitted() when the user enters a command.
-
-    def _command_help(self) -> None:
-        """Handle the /help command to display available commands."""
-        show_help(self.main_display)
-
-    def _command_new(self) -> None:
-        """Handle the /new command to start a new conversation."""
-        # Check if a conversation is currently running
-        if self.conversation_runner and self.conversation_runner.is_running:
-            self.notify(
-                title="New Conversation Error",
-                message="Cannot start a new conversation while one is running. "
-                "Please wait for the current conversation to complete or pause it.",
-                severity="error",
-            )
-            return
-
-        # Create a new conversation via store
-        new_id_str = self._store.create()
-        new_id = uuid.UUID(new_id_str)
-
-        # Update AppState (single source of truth) - UI components react automatically
-        self.conversation_id = new_id
-        self.app_state.reset_conversation_state()
-
-        # Reset the conversation runner
-        self.conversation_runner = None
-
-        # Remove any existing confirmation panel
-        if self.confirmation_panel:
-            self.confirmation_panel.remove()
-            self.confirmation_panel = None
-
-        # Clear all dynamically added widgets from main_display
-        # Keep only the splash widgets (those with IDs starting with "splash_")
-        # and the input_area
-        widgets_to_remove = [
-            w
-            for w in self.main_display.children
-            if not (w.id or "").startswith("splash_") and w.id != "input_area"
-        ]
-        for widget in widgets_to_remove:
-            widget.remove()
-
-        # Update the splash conversation widget with the new conversation ID
-        splash_conversation = self.query_one("#splash_conversation", Static)
-        splash_conversation.update(
-            get_conversation_text(new_id.hex, theme=OPENHANDS_THEME)
-        )
-
-        # Scroll to top to show the splash screen
-        self.main_display.scroll_home(animate=False)
-
-        # Notify user
-        self.notify(
-            title="New Conversation",
-            message="Started a new conversation",
-            severity="information",
-        )
-
-    def _command_history(self) -> None:
-        """Handle the /history command to show conversation history panel."""
-        self.action_toggle_history()
-
-    def _command_confirm(self) -> None:
-        """Handle the /confirm command to show confirmation settings modal."""
-        from openhands_cli.tui.modals.confirmation_modal import (
-            ConfirmationSettingsModal,
-        )
-
-        # Get current confirmation policy from AppState
-        current_policy = self.app_state.confirmation_policy
-
-        # Show the confirmation settings modal
-        confirmation_modal = ConfirmationSettingsModal(
-            current_policy=current_policy,
-            on_policy_selected=self.app_state.set_confirmation_policy,
-        )
-        self.push_screen(confirmation_modal)
-
-    def _command_condense(self) -> None:
-        """Handle the /condense command to condense conversation history."""
-        if not self.conversation_runner:
-            self.notify(
-                title="Condense Error",
-                message="No conversation available to condense",
-                severity="error",
-            )
-            return
-
-        # Use the async condensation method from conversation runner
-        asyncio.create_task(self.conversation_runner.condense_async())
-
-    def _command_feedback(self) -> None:
-        """Handle the /feedback command to open feedback form in browser."""
-        import webbrowser
-
-        feedback_url = "https://forms.gle/chHc5VdS3wty5DwW6"
-        webbrowser.open(feedback_url)
-        self.notify(
-            title="Feedback",
-            message="Opening feedback form in your browser...",
-            severity="information",
-        )
-
-    def _command_exit(self) -> None:
-        """Handle the /exit command with optional confirmation."""
-        if self.exit_confirmation:
-            self.push_screen(ExitConfirmationModal())
-        else:
-            self.exit()
+        Delegates to MainDisplay's _command_exit() for consistent behavior.
+        """
+        self.main_display._command_exit()
 
     def action_toggle_cells(self) -> None:
         """Action to handle Ctrl+O key binding.
