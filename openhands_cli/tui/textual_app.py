@@ -37,12 +37,11 @@ from openhands_cli.stores import AgentStore, MissingEnvironmentVariablesError
 from openhands_cli.theme import OPENHANDS_THEME
 from openhands_cli.tui.content.splash import get_splash_content
 from openhands_cli.tui.core import ConversationFinished, StateManager
-from openhands_cli.tui.core.commands import is_valid_command, show_help
+from openhands_cli.tui.core.commands import CommandHandler, is_valid_command
 from openhands_cli.tui.core.conversation_manager import ConversationManager
 from openhands_cli.tui.core.conversation_runner import ConversationRunner
 from openhands_cli.tui.core.messages import SwitchConversationRequest
 from openhands_cli.tui.modals import SettingsScreen
-from openhands_cli.tui.modals.confirmation_modal import ConfirmationSettingsModal
 from openhands_cli.tui.modals.exit_modal import ExitConfirmationModal
 from openhands_cli.tui.panels.confirmation_panel import InlineConfirmationPanel
 from openhands_cli.tui.panels.history_side_panel import HistorySidePanel
@@ -148,6 +147,9 @@ class OpenHandsApp(CollapsibleNavigationMixin, App):
             if self.conversation_runner
             else None
         )
+
+        # Initialize command handler
+        self._command_handler = CommandHandler(self)
 
         # Confirmation panel tracking
         self.confirmation_panel: InlineConfirmationPanel | None = None
@@ -499,28 +501,8 @@ class OpenHandsApp(CollapsibleNavigationMixin, App):
             await self._handle_user_message(content)
 
     def _handle_command(self, command: str) -> None:
-        """Handle command execution."""
-
-        if command == "/help":
-            show_help(self.main_display)
-        elif command == "/new":
-            self._handle_new_command()
-        elif command == "/history":
-            self._handle_history_command()
-        elif command == "/confirm":
-            self._handle_confirm_command()
-        elif command == "/condense":
-            self._handle_condense_command()
-        elif command == "/feedback":
-            self._handle_feedback_command()
-        elif command == "/exit":
-            self._handle_exit()
-        else:
-            self.notify(
-                title="Command error",
-                message=f"Unknown command: {command}",
-                severity="error",
-            )
+        """Handle command execution by delegating to the CommandHandler."""
+        self._command_handler.handle_command(command)
 
     async def _handle_user_message(self, user_message: str) -> None:
         """Handle regular user messages with the conversation runner."""
@@ -561,7 +543,7 @@ class OpenHandsApp(CollapsibleNavigationMixin, App):
 
     def action_request_quit(self) -> None:
         """Action to handle Ctrl+Q key binding."""
-        self._handle_exit()
+        self._command_handler.handle_command("/exit")
 
     def action_toggle_cells(self) -> None:
         """Action to handle Ctrl+O key binding.
@@ -692,45 +674,6 @@ class OpenHandsApp(CollapsibleNavigationMixin, App):
         else:
             self.notify(message="No running conversation to pause", severity="error")
 
-    def _handle_confirm_command(self) -> None:
-        """Handle the /confirm command to show confirmation settings modal."""
-        # Get current confirmation policy from StateManager (it owns the policy)
-        current_policy = self.state_manager.confirmation_policy
-
-        # Show the confirmation settings modal
-        # Pass StateManager's set_confirmation_policy directly - modal handles notification
-        confirmation_modal = ConfirmationSettingsModal(
-            current_policy=current_policy,
-            on_policy_selected=self.state_manager.set_confirmation_policy,
-        )
-        self.push_screen(confirmation_modal)
-
-    def _handle_condense_command(self) -> None:
-        """Handle the /condense command to condense conversation history."""
-        if not self.conversation_runner:
-            self.notify(
-                title="Condense Error",
-                message="No conversation available to condense",
-                severity="error",
-            )
-            return
-
-        # Use the async condensation method from conversation runner
-        # This will handle all error cases and notifications
-        asyncio.create_task(self.conversation_runner.condense_async())
-
-    def _handle_feedback_command(self) -> None:
-        """Handle the /feedback command to open feedback form in browser."""
-        import webbrowser
-
-        feedback_url = "https://forms.gle/chHc5VdS3wty5DwW6"
-        webbrowser.open(feedback_url)
-        self.notify(
-            title="Feedback",
-            message="Opening feedback form in your browser...",
-            severity="information",
-        )
-
     def _dismiss_pending_feedback_widgets(self) -> None:
         """Remove all pending CriticFeedbackWidget instances from the UI.
 
@@ -742,14 +685,6 @@ class OpenHandsApp(CollapsibleNavigationMixin, App):
         # Find and remove all CriticFeedbackWidget instances
         for widget in self.main_display.query(CriticFeedbackWidget):
             widget.remove()
-
-    def _handle_new_command(self) -> None:
-        """Handle the /new command to start a new conversation."""
-        self._conversation_manager.create_new()
-
-    def _handle_history_command(self) -> None:
-        """Handle the /history command to show conversation history panel."""
-        self.action_toggle_history()
 
     def action_toggle_history(self) -> None:
         """Toggle the history side panel."""
@@ -827,13 +762,6 @@ class OpenHandsApp(CollapsibleNavigationMixin, App):
         except Exception:
             # If timeout or error, default to DEFER
             return UserConfirmation.DEFER
-
-    def _handle_exit(self) -> None:
-        """Handle exit command with optional confirmation."""
-        if self.exit_confirmation:
-            self.push_screen(ExitConfirmationModal())
-        else:
-            self.exit()
 
 
 def main(

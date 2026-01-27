@@ -4,11 +4,19 @@ This module contains all available commands, their descriptions,
 and the logic for handling command execution.
 """
 
+from __future__ import annotations
+
+import asyncio
+from typing import TYPE_CHECKING
+
 from textual.containers import VerticalScroll
 from textual.widgets import Static
 from textual_autocomplete import DropdownItem
 
 from openhands_cli.theme import OPENHANDS_THEME
+
+if TYPE_CHECKING:
+    from openhands_cli.tui.textual_app import OpenHandsApp
 
 
 # Available commands with descriptions after the command
@@ -81,3 +89,108 @@ def show_help(main_display: VerticalScroll) -> None:
 """
     help_widget = Static(help_text, classes="help-message")
     main_display.mount(help_widget)
+
+
+class CommandHandler:
+    """Handles command execution for the OpenHands CLI app.
+
+    This class encapsulates all command handling logic, delegating to the app
+    for UI operations and state management.
+    """
+
+    def __init__(self, app: OpenHandsApp) -> None:
+        """Initialize the command handler.
+
+        Args:
+            app: The OpenHands app instance to delegate UI operations to.
+        """
+        self._app = app
+
+    def handle_command(self, command: str) -> None:
+        """Handle command execution by dispatching to the appropriate handler.
+
+        Args:
+            command: The command string to execute (e.g., "/help", "/exit").
+        """
+        if command == "/help":
+            self._handle_help()
+        elif command == "/new":
+            self._handle_new()
+        elif command == "/history":
+            self._handle_history()
+        elif command == "/confirm":
+            self._handle_confirm()
+        elif command == "/condense":
+            self._handle_condense()
+        elif command == "/feedback":
+            self._handle_feedback()
+        elif command == "/exit":
+            self._handle_exit()
+        else:
+            self._app.notify(
+                title="Command error",
+                message=f"Unknown command: {command}",
+                severity="error",
+            )
+
+    def _handle_help(self) -> None:
+        """Handle the /help command to display available commands."""
+        show_help(self._app.main_display)
+
+    def _handle_new(self) -> None:
+        """Handle the /new command to start a new conversation."""
+        self._app._conversation_manager.create_new()
+
+    def _handle_history(self) -> None:
+        """Handle the /history command to show conversation history panel."""
+        self._app.action_toggle_history()
+
+    def _handle_confirm(self) -> None:
+        """Handle the /confirm command to show confirmation settings modal."""
+        from openhands_cli.tui.modals.confirmation_modal import ConfirmationSettingsModal
+
+        # Get current confirmation policy from StateManager (it owns the policy)
+        current_policy = self._app.state_manager.confirmation_policy
+
+        # Show the confirmation settings modal
+        # Pass StateManager's set_confirmation_policy directly - modal handles notification
+        confirmation_modal = ConfirmationSettingsModal(
+            current_policy=current_policy,
+            on_policy_selected=self._app.state_manager.set_confirmation_policy,
+        )
+        self._app.push_screen(confirmation_modal)
+
+    def _handle_condense(self) -> None:
+        """Handle the /condense command to condense conversation history."""
+        if not self._app.conversation_runner:
+            self._app.notify(
+                title="Condense Error",
+                message="No conversation available to condense",
+                severity="error",
+            )
+            return
+
+        # Use the async condensation method from conversation runner
+        # This will handle all error cases and notifications
+        asyncio.create_task(self._app.conversation_runner.condense_async())
+
+    def _handle_feedback(self) -> None:
+        """Handle the /feedback command to open feedback form in browser."""
+        import webbrowser
+
+        feedback_url = "https://forms.gle/chHc5VdS3wty5DwW6"
+        webbrowser.open(feedback_url)
+        self._app.notify(
+            title="Feedback",
+            message="Opening feedback form in your browser...",
+            severity="information",
+        )
+
+    def _handle_exit(self) -> None:
+        """Handle the /exit command with optional confirmation."""
+        from openhands_cli.tui.modals.exit_modal import ExitConfirmationModal
+
+        if self._app.exit_confirmation:
+            self._app.push_screen(ExitConfirmationModal())
+        else:
+            self._app.exit()
