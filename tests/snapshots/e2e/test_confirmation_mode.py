@@ -1,19 +1,20 @@
 """E2E snapshot tests for confirmation mode multi-turn conversation.
 
 These tests validate a multi-turn conversation with confirmation mode,
-capturing snapshots at key points after confirmations are resolved.
+capturing snapshots at key points including when the confirmation panel
+is displayed.
 
-Note: Due to Textual's snapshot mechanism requiring the app to be "idle",
-we cannot capture snapshots while a confirmation panel is being displayed
-(as a worker is blocked waiting for user input). Instead, we capture
-snapshots after each confirmation is resolved:
+With the non-blocking confirmation architecture:
+1. Workers exit when confirmation is needed (no blocking)
+2. UI shows confirmation panel via Textual messages
+3. Snapshots can be captured while confirmation panel is displayed
 
-1. After first turn (selecting "Auto LOW/MED" to confirm and set policy)
-2. After second turn (HIGH risk action confirmed with "Yes")
-3. After third turn (LOW risk auto-approved, final state)
+Tests capture:
+1. Confirmation panel displayed (waiting for user input)
+2. After first turn (selecting "Auto LOW/MED" to confirm and set policy)
+3. After HIGH risk confirmation with "Yes"
+4. Final state after all three turns complete
 """
-
-import asyncio
 
 import pytest
 from textual.pilot import Pilot
@@ -21,18 +22,48 @@ from textual.pilot import Pilot
 from .helpers import type_text, wait_for_app_ready, wait_for_idle
 
 
-async def wait_for_confirmation_panel(pilot: Pilot, timeout: float = 5.0) -> None:
-    """Wait for confirmation panel to render.
+class TestConfirmationPanelDisplayed:
+    """Test that confirmation panel is properly displayed."""
 
-    When waiting for a confirmation panel, we can't use wait_for_idle because
-    a worker is blocked waiting for user input. Instead, we wait for animations
-    and add a small delay to ensure the UI is fully rendered.
-    """
-    # Give time for the worker to start and the confirmation panel to be mounted
-    await asyncio.sleep(1.0)
-    await pilot.wait_for_scheduled_animations()
-    await asyncio.sleep(0.5)
-    await pilot.wait_for_scheduled_animations()
+    @pytest.mark.parametrize(
+        "mock_llm_with_trajectory", ["confirmation_mode"], indirect=True
+    )
+    def test_confirmation_panel_displayed(
+        self, snap_compare, mock_llm_with_trajectory
+    ):
+        """Snapshot showing confirmation panel while waiting for user input.
+
+        User types "echo hello world" and the confirmation panel is shown.
+        Since workers are non-blocking, the snapshot captures the panel.
+        """
+        from openhands.sdk.security.confirmation_policy import AlwaysConfirm
+        from openhands_cli.tui.textual_app import OpenHandsApp
+
+        async def run_to_confirmation_panel(pilot: Pilot):
+            await wait_for_app_ready(pilot)
+
+            # Type first command
+            await type_text(pilot, "echo hello world")
+            await pilot.press("enter")
+
+            # Wait for worker to process and show confirmation panel
+            # With non-blocking workers, wait_for_idle completes after
+            # the worker posts ConfirmationNeeded and exits
+            await wait_for_idle(pilot)
+
+            # The confirmation panel should now be visible
+
+        app = OpenHandsApp(
+            exit_confirmation=False,
+            initial_confirmation_policy=AlwaysConfirm(),
+            resume_conversation_id=mock_llm_with_trajectory["conversation_id"],
+        )
+
+        assert snap_compare(
+            app,
+            terminal_size=(120, 40),
+            run_before=run_to_confirmation_panel,
+        )
 
 
 class TestConfirmationModePhase1:
@@ -60,8 +91,8 @@ class TestConfirmationModePhase1:
             await type_text(pilot, "echo hello world")
             await pilot.press("enter")
 
-            # Wait for confirmation panel to render
-            await wait_for_confirmation_panel(pilot)
+            # Wait for confirmation panel to appear
+            await wait_for_idle(pilot)
 
             # Select "Auto LOW/MED" (4th option, index 3) to confirm and set policy
             await pilot.press("down")
@@ -108,7 +139,7 @@ class TestConfirmationModePhase2:
             # Turn 1: First command with policy change
             await type_text(pilot, "echo hello world")
             await pilot.press("enter")
-            await wait_for_confirmation_panel(pilot)
+            await wait_for_idle(pilot)
 
             # Select "Auto LOW/MED"
             await pilot.press("down")
@@ -120,7 +151,7 @@ class TestConfirmationModePhase2:
             # Turn 2: HIGH risk command
             await type_text(pilot, "do it again, mark it as a high risk action though")
             await pilot.press("enter")
-            await wait_for_confirmation_panel(pilot)
+            await wait_for_idle(pilot)
 
             # Confirm with "Yes" (default selection)
             await pilot.press("enter")
@@ -160,7 +191,7 @@ class TestConfirmationModePhase3:
             # Turn 1: First command with policy change
             await type_text(pilot, "echo hello world")
             await pilot.press("enter")
-            await wait_for_confirmation_panel(pilot)
+            await wait_for_idle(pilot)
 
             # Select "Auto LOW/MED"
             await pilot.press("down")
@@ -172,7 +203,7 @@ class TestConfirmationModePhase3:
             # Turn 2: HIGH risk command
             await type_text(pilot, "do it again, mark it as a high risk action though")
             await pilot.press("enter")
-            await wait_for_confirmation_panel(pilot)
+            await wait_for_idle(pilot)
 
             # Confirm with "Yes"
             await pilot.press("enter")
