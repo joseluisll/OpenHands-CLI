@@ -81,10 +81,6 @@ class SplashContent(Container):
         yield Static(id="splash_update_notice", classes="splash-update-notice")
         yield Static(id="splash_critic_notice", classes="splash-critic-notice")
 
-    def on_mount(self) -> None:
-        """Hide content on mount until initialize() is called."""
-        self._hide_content()
-
     def initialize(self, *, has_critic: bool = False) -> None:
         """Initialize and show the splash content.
 
@@ -99,7 +95,6 @@ class SplashContent(Container):
 
         self._has_critic = has_critic
         self._populate_content()
-        self._show_content()
         self._is_initialized = True
 
     @property
@@ -120,19 +115,6 @@ class SplashContent(Container):
                 self.conversation_id.hex, theme=OPENHANDS_THEME
             )
             self.query_one("#splash_conversation", Static).update(conversation_text)
-
-    def _hide_content(self) -> None:
-        """Hide all splash content widgets."""
-        for widget in self.query("Static"):
-            widget.display = False
-
-    def _show_content(self) -> None:
-        """Show splash content widgets (except conditional notices)."""
-        for widget in self.query("Static"):
-            if widget.id in ("splash_update_notice", "splash_critic_notice"):
-                # These are shown conditionally based on content
-                continue
-            widget.display = True
 
     def _populate_content(self) -> None:
         """Populate splash content widgets with actual content."""
