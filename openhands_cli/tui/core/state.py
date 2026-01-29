@@ -41,6 +41,7 @@ from openhands.sdk.security.confirmation_policy import (
 
 
 if TYPE_CHECKING:
+    from openhands.sdk import BaseConversation
     from openhands.sdk.event import ActionEvent
     from openhands_cli.tui.widgets.input_area import InputAreaContainer
     from openhands_cli.tui.widgets.main_display import ScrollableContent
@@ -124,6 +125,7 @@ class ConversationState(Container):
         # Initialize internal state BEFORE calling super().__init__
         # because reactive watchers may be triggered during initialization
         self._conversation_start_time: float | None = None
+        self._conversation: BaseConversation | None = None  # For metrics reading
         self._timer = None
 
         super().__init__(id="conversation_state", **kwargs)
@@ -208,13 +210,16 @@ class ConversationState(Container):
             self._timer = None
 
     def _update_elapsed(self) -> None:
-        """Update elapsed seconds while running."""
+        """Update elapsed seconds and metrics while running."""
         if not self.running or not self._conversation_start_time:
             return
 
         new_elapsed = int(time.time() - self._conversation_start_time)
         if new_elapsed != self.elapsed_seconds:
             self.elapsed_seconds = new_elapsed
+
+        # Update metrics from conversation stats
+        self._update_metrics()
 
     # ---- State Change Watchers ----
 
@@ -272,6 +277,26 @@ class ConversationState(Container):
         """Mark that a conversation switch has completed. Thread-safe."""
         self._schedule_update("is_switching", False)
 
+    # ---- Conversation Attachment (for metrics) ----
+
+    def attach_conversation(self, conversation: "BaseConversation") -> None:
+        """Attach a conversation for metrics reading.
+
+        This allows ConversationState to read metrics from the conversation's
+        stats. Policy sync is handled by ConversationManager, not here.
+        """
+        self._conversation = conversation
+
+    def _update_metrics(self) -> None:
+        """Update metrics from attached conversation stats."""
+        if self._conversation is None:
+            return
+
+        stats = self._conversation.state.stats
+        if stats:
+            combined_metrics = stats.get_combined_metrics()
+            self.metrics = combined_metrics
+
     def reset_conversation_state(self) -> None:
         """Reset state for a new conversation.
 
@@ -284,6 +309,7 @@ class ConversationState(Container):
         self.metrics = None
         self.conversation_title = None
         self._conversation_start_time = None
+        self._conversation = None
 
 
 # Backward compatibility alias - ConversationView is now ConversationState

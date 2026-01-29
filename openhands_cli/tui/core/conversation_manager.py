@@ -552,6 +552,9 @@ class ConversationManager(Container):
             critic_disabled=self._critic_disabled,
         )
 
+        # Attach conversation to state for metrics reading
+        self._state.attach_conversation(runner.conversation)
+
         return runner
 
     def _dismiss_pending_feedback_widgets(self) -> None:
