@@ -17,7 +17,7 @@ class TestSettingsRestartNotification:
         # Mock conversation_view for the conversation_runner property
         app.conversation_view = Mock()
         app.conversation_view.conversation_runner = None
-        app.app_state = app.conversation_view  # Backwards compatibility alias
+        
         app.notify = Mock()
 
         app._notify_restart_required()
@@ -30,7 +30,7 @@ class TestSettingsRestartNotification:
         # Mock conversation_view for the conversation_runner property
         app.conversation_view = Mock()
         app.conversation_view.conversation_runner = Mock()
-        app.app_state = app.conversation_view  # Backwards compatibility alias
+        
         app.notify = Mock()
 
         app._notify_restart_required()
@@ -58,7 +58,7 @@ class TestSettingsRestartNotification:
         app.conversation_view = Mock()
         app.conversation_view.conversation_runner = Mock()
         app.conversation_view.conversation_runner.is_running = False
-        app.app_state = app.conversation_view  # Backwards compatibility alias
+        
         app.push_screen = Mock()
         app._reload_visualizer = Mock()
         app.notify = Mock()
@@ -96,7 +96,7 @@ class TestHistoryIntegration:
 
         app.conversation_view = Mock(spec=ConversationView)
         app.conversation_view.conversation_id = uuid.uuid4()
-        app.app_state = app.conversation_view  # Backwards compatibility alias
+        
 
         toggle_mock = Mock()
         monkeypatch.setattr(HistorySidePanel, "toggle", toggle_mock)
@@ -123,11 +123,11 @@ class TestConversationSwitcher:
         app.notify = Mock()
         app.input_field = Mock()
         app.input_field.focus_input = Mock()
-        app.app_state = Mock()  # ConversationView is now used instead of post_message
-        # conversation_id property delegates to app_state
+        app.conversation_view = Mock()
+        # conversation_id property delegates to conversation_view
         type(app).conversation_id = property(
-            lambda self: self.app_state.conversation_id,
-            lambda self, v: setattr(self.app_state, "conversation_id", v),
+            lambda self: self.conversation_view.conversation_id,
+            lambda self, v: setattr(self.conversation_view, "conversation_id", v),
         )
 
         switcher = ConversationSwitcher(app)
@@ -140,8 +140,8 @@ class TestConversationSwitcher:
 
         app.input_field.focus_input.assert_called_once()
         # Verify that ConversationView was updated with the new conversation ID
-        assert app.app_state.conversation_id == target_id
-        app.app_state.reset_conversation_state.assert_called_once()
+        assert app.conversation_view.conversation_id == target_id
+        app.conversation_view.reset_conversation_state.assert_called_once()
 
     def test_switch_to_invalid_uuid_shows_error(self):
         """Switching with an invalid UUID shows an error notification."""

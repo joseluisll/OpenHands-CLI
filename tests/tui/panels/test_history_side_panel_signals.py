@@ -34,14 +34,13 @@ class HistoryMessagesTestApp(App):
         # Track messages received by the app
         self.received_switch_requests: list[str] = []
         self._store = LocalFileStore()
-        # ConversationView for reactive state (backwards compat alias: state_manager)
-        self.app_state = ConversationView()
-        self.state_manager = self.app_state  # Backwards compatibility
+        # ConversationView for reactive state
+        self.conversation_view = ConversationView()
 
     def compose(self) -> ComposeResult:
         with Horizontal(id="content_area"):
             yield Static("main", id="main")
-            yield self.app_state
+            yield self.conversation_view
             yield HistorySidePanel(app=self, current_conversation_id=None)  # type: ignore
 
     def on_switch_conversation_request(self, event: SwitchConversationRequest) -> None:
@@ -50,7 +49,7 @@ class HistoryMessagesTestApp(App):
 
 
 @pytest.mark.asyncio
-async def test_history_panel_updates_from_state_manager(
+async def test_history_panel_updates_from_conversation_view(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """Test that the history panel responds to ConversationView state changes."""
@@ -77,7 +76,7 @@ async def test_history_panel_updates_from_state_manager(
 
         # Update conversation_id via ConversationView (simulating new conversation)
         new_id = uuid.uuid4()
-        app.state_manager.conversation_id = new_id
+        app.conversation_view.conversation_id = new_id
         await pilot.pause()
 
         assert panel.current_conversation_id == new_id
@@ -93,7 +92,7 @@ async def test_history_panel_updates_from_state_manager(
         assert len(placeholder_items) == 1
 
         # Update title via ConversationView
-        app.state_manager.conversation_title = "first message"
+        app.conversation_view.conversation_title = "first message"
         await pilot.pause()
 
         placeholder = placeholder_items[0]
@@ -107,9 +106,9 @@ async def test_history_panel_updates_from_state_manager(
 
         # Simulate a cancelled switch (is_switching goes True then False without
         # conversation_id changing)
-        app.state_manager.is_switching = True
+        app.conversation_view.is_switching = True
         await pilot.pause()
-        app.state_manager.is_switching = False
+        app.conversation_view.is_switching = False
         await pilot.pause()
 
         # Selection should revert to current conversation

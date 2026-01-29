@@ -78,7 +78,7 @@ class ConversationSwitcher:
             self._switch_with_pause(target_id)
         else:
             # Revert selection - set is_switching to False triggers UI update
-            self.app.app_state.finish_switching()
+            self.app.conversation_view.finish_switching()
             self.app.input_field.focus_input()
 
     def _switch_with_pause(self, target_id: uuid.UUID) -> None:
@@ -136,7 +136,7 @@ class ConversationSwitcher:
     def _show_loading(self) -> None:
         """Show a loading notification that can be dismissed after the switch."""
         # Mark switching in progress via ConversationView
-        self.app.app_state.start_switching()
+        self.app.conversation_view.start_switching()
 
         # Dismiss any previous loading notification
         if self._loading_notification is not None:
@@ -165,7 +165,7 @@ class ConversationSwitcher:
         finally:
             self._loading_notification = None
             # Mark switching complete via ConversationView
-            self.app.app_state.finish_switching()
+            self.app.conversation_view.finish_switching()
 
     def _prepare_ui(self, conversation_id: uuid.UUID) -> None:
         """Prepare UI for switching conversations (runs on the UI thread)."""
@@ -189,10 +189,9 @@ class ConversationSwitcher:
         self._dismiss_loading()
 
         # Update ConversationView - UI components will react automatically
-        # conversation_id property delegates to app_state
         self.app.conversation_id = target_id
         # Reset running state, metrics, etc.
-        self.app.app_state.reset_conversation_state()
+        self.app.conversation_view.reset_conversation_state()
 
         self.app.notify(
             title="Switched",
@@ -211,10 +210,10 @@ class ConversationSwitcher:
             # Set the new conversation_id on ConversationView and create runner
             # This needs to be done on the main thread since it modifies state
             def _create_runner_for_conversation() -> None:
-                self.app.app_state.conversation_id = target_id
+                self.app.conversation_view.conversation_id = target_id
                 # Force creation of new runner for this conversation
-                self.app.app_state.conversation_runner = None
-                runner = self.app.app_state.get_or_create_runner()
+                self.app.conversation_view.conversation_runner = None
+                runner = self.app.conversation_view.get_or_create_runner()
                 self._finish_switch(runner, target_id)
 
             self.app.call_from_thread(_create_runner_for_conversation)

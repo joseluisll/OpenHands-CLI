@@ -225,7 +225,7 @@ class TestOpenHandsAppCommands:
     ) -> None:
         """`/confirm` should open ConfirmationSettingsModal.
 
-        Note: The app now reads the policy from state_manager.confirmation_policy
+        Note: The app reads the policy from conversation_view.confirmation_policy
         (ConversationView owns the policy), not from conversation_runner.
         """
         monkeypatch.setattr(
@@ -239,8 +239,10 @@ class TestOpenHandsAppCommands:
         async with app.run_test() as pilot:
             oh_app = cast(OpenHandsApp, pilot.app)
 
-            # Verify state_manager has the default policy
-            assert isinstance(oh_app.state_manager.confirmation_policy, AlwaysConfirm)
+            # Verify conversation_view has the default policy
+            assert isinstance(
+                oh_app.conversation_view.confirmation_policy, AlwaysConfirm
+            )
 
             oh_app.conversation_view.input_area._command_confirm()
 

@@ -198,17 +198,17 @@ class HistorySidePanel(Container):
 
         Sets up watchers on ConversationView to react to conversation state changes.
         """
-        app_state = self._oh_app.app_state
+        cv = self._oh_app.conversation_view
 
         # Initialize from current state
-        self.current_conversation_id = app_state.conversation_id
+        self.current_conversation_id = cv.conversation_id
         self.selected_conversation_id = self.current_conversation_id
-        self._previous_is_switching = app_state.is_switching
+        self._previous_is_switching = cv.is_switching
 
         # Watch ConversationView for changes
-        self.watch(app_state, "conversation_id", self._on_conversation_id_changed)
-        self.watch(app_state, "conversation_title", self._on_conversation_title_changed)
-        self.watch(app_state, "is_switching", self._on_is_switching_changed)
+        self.watch(cv, "conversation_id", self._on_conversation_id_changed)
+        self.watch(cv, "conversation_title", self._on_conversation_title_changed)
+        self.watch(cv, "is_switching", self._on_is_switching_changed)
 
         # Load and render conversations
         self.refresh_content()
@@ -252,7 +252,7 @@ class HistorySidePanel(Container):
         if was_switching and not is_switching:
             # The conversation_id watcher handles successful switches,
             # so we only need to handle cancelled switches here
-            current_state_id = self._oh_app.app_state.conversation_id
+            current_state_id = self._oh_app.conversation_view.conversation_id
             if current_state_id == self.current_conversation_id:
                 # Switch was cancelled - revert selection to current
                 self.select_current_conversation()

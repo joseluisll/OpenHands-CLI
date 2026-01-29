@@ -155,12 +155,12 @@ class InputAreaContainer(Container):
         app: OpenHandsApp = self.app  # type: ignore[assignment]
 
         # Get current confirmation policy from ConversationView
-        current_policy = app.app_state.confirmation_policy
+        current_policy = app.conversation_view.confirmation_policy
 
         # Show the confirmation settings modal
         confirmation_modal = ConfirmationSettingsModal(
             current_policy=current_policy,
-            on_policy_selected=app.app_state.set_confirmation_policy,
+            on_policy_selected=app.conversation_view.set_confirmation_policy,
         )
         app.push_screen(confirmation_modal)
 

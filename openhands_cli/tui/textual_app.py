@@ -155,9 +155,6 @@ class OpenHandsApp(CollapsibleNavigationMixin, App):
             critic_disabled=critic_disabled,
             json_mode=json_mode,
         )
-        # Backwards compatibility alias
-        self.app_state = self.conversation_view
-        self.state_manager = self.conversation_view
 
         # Store exit confirmation setting
         self.exit_confirmation = exit_confirmation

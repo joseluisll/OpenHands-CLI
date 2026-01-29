@@ -400,9 +400,9 @@ class TestConversationSummary:
         from openhands_cli.tui.core.conversation_runner import ConversationRunner
 
         # Create a mock ConversationView
-        mock_app_state = Mock()
-        mock_app_state.confirmation_policy = AlwaysConfirm()
-        mock_app_state.attach_conversation = Mock()
+        mock_conversation_view = Mock()
+        mock_conversation_view.confirmation_policy = AlwaysConfirm()
+        mock_conversation_view.attach_conversation = Mock()
 
         with patch(
             "openhands_cli.tui.core.conversation_runner.setup_conversation",
@@ -410,7 +410,7 @@ class TestConversationSummary:
         ):
             runner = ConversationRunner(
                 conversation_id=uuid.uuid4(),
-                app_state=mock_app_state,
+                conversation_view=mock_conversation_view,
                 confirmation_callback=Mock(),
                 notification_callback=Mock(),
                 visualizer=Mock(),
