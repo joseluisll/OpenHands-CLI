@@ -17,7 +17,7 @@ Message Flow:
     - All messages bubble up to ConversationManager (ancestor)
 """
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 
 from textual import on
 from textual.containers import Container
@@ -27,6 +27,7 @@ from openhands_cli.tui.messages import SlashCommandSubmitted
 
 
 if TYPE_CHECKING:
+    from openhands_cli.tui.textual_app import OpenHandsApp
     from openhands_cli.tui.widgets.main_display import ScrollableContent
 
 
@@ -96,9 +97,8 @@ class InputAreaContainer(Container):
 
     def _command_history(self) -> None:
         """Handle the /history command to show conversation history panel."""
-        from openhands_cli.tui.textual_app import OpenHandsApp
 
-        app: OpenHandsApp = self.app  # type: ignore[assignment]
+        app = cast("OpenHandsApp", self.app)
         app.action_toggle_history()
 
     def _command_confirm(self) -> None:
@@ -107,9 +107,8 @@ class InputAreaContainer(Container):
         from openhands_cli.tui.modals.confirmation_modal import (
             ConfirmationSettingsModal,
         )
-        from openhands_cli.tui.textual_app import OpenHandsApp
 
-        app: OpenHandsApp = self.app  # type: ignore[assignment]
+        app = cast("OpenHandsApp", self.app)
 
         # Get current confirmation policy from state
         current_policy = app.conversation_state.confirmation_policy
@@ -146,9 +145,8 @@ class InputAreaContainer(Container):
     def _command_exit(self) -> None:
         """Handle the /exit command with optional confirmation."""
         from openhands_cli.tui.modals.exit_modal import ExitConfirmationModal
-        from openhands_cli.tui.textual_app import OpenHandsApp
 
-        app: OpenHandsApp = self.app  # type: ignore[assignment]
+        app = cast("OpenHandsApp", self.app)
 
         if app.exit_confirmation:
             app.push_screen(ExitConfirmationModal())

@@ -28,7 +28,7 @@ State Updates:
 import asyncio
 import logging
 import uuid
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 
 from textual import on
 from textual.containers import Container
@@ -43,6 +43,7 @@ from openhands_cli.tui.messages import UserInputSubmitted
 if TYPE_CHECKING:
     from openhands_cli.tui.core.conversation_runner import ConversationRunner
     from openhands_cli.tui.core.state import ConversationState
+    from openhands_cli.tui.textual_app import OpenHandsApp
 
 logger = logging.getLogger(__name__)
 
@@ -190,9 +191,8 @@ class ConversationManager(Container):
 
     async def _process_user_message(self, content: str) -> None:
         """Process a user message - render it and send to runner."""
-        from openhands_cli.tui.textual_app import OpenHandsApp
 
-        app: OpenHandsApp = self.app  # type: ignore[assignment]
+        app = cast("OpenHandsApp", self.app)
 
         # Get or create runner for current conversation
         runner = self._get_or_create_runner(self._state.conversation_id)
@@ -223,9 +223,8 @@ class ConversationManager(Container):
         event.stop()
 
         from openhands_cli.conversations.store.local import LocalFileStore
-        from openhands_cli.tui.textual_app import OpenHandsApp
 
-        app: OpenHandsApp = self.app  # type: ignore[assignment]
+        app = cast("OpenHandsApp", self.app)
 
         # Check if a conversation is currently running
         if self._state.running:
@@ -266,9 +265,8 @@ class ConversationManager(Container):
         event.stop()
 
         from openhands_cli.tui.modals import SwitchConversationModal
-        from openhands_cli.tui.textual_app import OpenHandsApp
 
-        app: OpenHandsApp = self.app  # type: ignore[assignment]
+        app = cast("OpenHandsApp", self.app)
         target_id = event.conversation_id
 
         # Don't switch if already on this conversation
@@ -308,9 +306,7 @@ class ConversationManager(Container):
         else:
             # Revert switching state
             self._state.finish_switching()
-            from openhands_cli.tui.textual_app import OpenHandsApp
-
-            app: OpenHandsApp = self.app  # type: ignore[assignment]
+            app = cast("OpenHandsApp", self.app)
             app.input_field.focus_input()
 
     def _perform_switch(
@@ -319,9 +315,7 @@ class ConversationManager(Container):
         """Perform the conversation switch."""
         from textual.notifications import Notification, Notify
 
-        from openhands_cli.tui.textual_app import OpenHandsApp
-
-        app: OpenHandsApp = self.app  # type: ignore[assignment]
+        app = cast("OpenHandsApp", self.app)
 
         # Show loading notification
         self._state.start_switching()
@@ -362,9 +356,8 @@ class ConversationManager(Container):
 
     def _prepare_switch_ui(self, target_id: uuid.UUID) -> None:
         """Prepare UI for switch (runs on main thread)."""
-        from openhands_cli.tui.textual_app import OpenHandsApp
 
-        app: OpenHandsApp = self.app  # type: ignore[assignment]
+        app = cast("OpenHandsApp", self.app)
 
         # Update state - triggers reactive updates
         self._state.conversation_id = target_id
@@ -386,9 +379,8 @@ class ConversationManager(Container):
 
     def _finish_switch(self, target_id: uuid.UUID) -> None:
         """Finalize the switch (runs on main thread)."""
-        from openhands_cli.tui.textual_app import OpenHandsApp
 
-        app: OpenHandsApp = self.app  # type: ignore[assignment]
+        app = cast("OpenHandsApp", self.app)
 
         # Dismiss loading notification
         if self._loading_notification:
@@ -414,9 +406,7 @@ class ConversationManager(Container):
         """Handle request to pause the current conversation."""
         event.stop()
 
-        from openhands_cli.tui.textual_app import OpenHandsApp
-
-        app: OpenHandsApp = self.app  # type: ignore[assignment]
+        app = cast("OpenHandsApp", self.app)
 
         if self._current_runner and self._current_runner.is_running:
             app.notify(
@@ -436,9 +426,7 @@ class ConversationManager(Container):
         """Handle request to condense conversation history."""
         event.stop()
 
-        from openhands_cli.tui.textual_app import OpenHandsApp
-
-        app: OpenHandsApp = self.app  # type: ignore[assignment]
+        app = cast("OpenHandsApp", self.app)
 
         if not self._current_runner:
             app.notify(
@@ -509,11 +497,10 @@ class ConversationManager(Container):
     def _create_runner(self, conversation_id: uuid.UUID) -> "ConversationRunner":
         """Create a new ConversationRunner for the given conversation."""
         from openhands_cli.tui.core.conversation_runner import ConversationRunner
-        from openhands_cli.tui.textual_app import OpenHandsApp
         from openhands_cli.tui.widgets.richlog_visualizer import ConversationVisualizer
         from openhands_cli.utils import json_callback
 
-        app: OpenHandsApp = self.app  # type: ignore[assignment]
+        app = cast("OpenHandsApp", self.app)
 
         # Create visualizer
         conversation_visualizer = ConversationVisualizer(
@@ -547,10 +534,9 @@ class ConversationManager(Container):
 
     def _dismiss_pending_feedback_widgets(self) -> None:
         """Remove all pending CriticFeedbackWidget instances."""
-        from openhands_cli.tui.textual_app import OpenHandsApp
         from openhands_cli.tui.utils.critic.feedback import CriticFeedbackWidget
 
-        app: OpenHandsApp = self.app  # type: ignore[assignment]
+        app = cast("OpenHandsApp", self.app)
 
         for widget in app.scroll_view.query(CriticFeedbackWidget):
             widget.remove()
