@@ -230,7 +230,8 @@ class ConversationState(Container):
             self._conversation_start_time = time.time()
             self.elapsed_seconds = 0
         elif not new_value and old_value:
-            # Stopped running
+            # Stopped running - final metrics update
+            self._update_metrics()
             self._conversation_start_time = None
             self.post_message(ConversationFinished())
 
