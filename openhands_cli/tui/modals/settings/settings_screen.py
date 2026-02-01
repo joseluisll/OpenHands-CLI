@@ -22,6 +22,7 @@ from textual.widgets import (
 )
 from textual.widgets._select import NoSelection
 
+from openhands.sdk import LLMSummarizingCondenser
 from openhands_cli.stores import AgentStore
 from openhands_cli.tui.modals.settings.choices import (
     get_model_options,
@@ -31,8 +32,6 @@ from openhands_cli.tui.modals.settings.components import (
     SettingsTab,
 )
 from openhands_cli.tui.modals.settings.utils import SettingsFormData, save_settings
-from openhands.sdk import LLMSummarizingCondenser
-
 
 
 class SettingsScreen(ModalScreen):
@@ -219,7 +218,11 @@ class SettingsScreen(ModalScreen):
             self.max_tokens_input.value = ""
 
         # Condenser max size (optional) – show existing value if set
-        if self.current_agent and self.current_agent.condenser and isinstance(self.current_agent.condenser, LLMSummarizingCondenser):
+        if (
+            self.current_agent
+            and self.current_agent.condenser
+            and isinstance(self.current_agent.condenser, LLMSummarizingCondenser)
+        ):
             self.max_size_input.value = str(self.current_agent.condenser.max_size)
         else:
             self.max_size_input.value = ""

@@ -195,8 +195,12 @@ def save_settings(
             api_key=data.api_key_input,
             base_url=data.base_url,
             usage_id="agent",
-            timeout=int(data.timeout) if isinstance(data.timeout, str) else data.timeout,
-            max_output_tokens=int(data.max_tokens) if isinstance(data.max_tokens, str) else data.max_tokens,
+            timeout=int(data.timeout)
+            if isinstance(data.timeout, str)
+            else data.timeout,
+            max_output_tokens=int(data.max_tokens)
+            if isinstance(data.max_tokens, str)
+            else data.max_tokens,
             **extra_kwargs,
         )
 
@@ -230,7 +234,9 @@ def save_settings(
             # Use provided max_size if available
             condenser = LLMSummarizingCondenser(
                 llm=condenser_llm,
-                max_size=data.max_size if data.max_size is not None else 240,
+                max_size=int(data.max_size)
+                if isinstance(data.max_size, str)
+                else (data.max_size if data.max_size is not None else 240),
             )
             agent = agent.model_copy(update={"condenser": condenser})
         elif data.memory_condensation_enabled and agent.condenser:
@@ -240,7 +246,11 @@ def save_settings(
                 and data.max_size is not None
             ):
                 new_condenser = agent.condenser.model_copy(
-                    update={"max_size": data.max_size}
+                    update={
+                        "max_size": int(data.max_size)
+                        if isinstance(data.max_size, str)
+                        else data.max_size
+                    }
                 )
                 agent = agent.model_copy(update={"condenser": new_condenser})
         elif not data.memory_condensation_enabled and agent.condenser:
