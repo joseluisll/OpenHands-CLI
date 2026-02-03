@@ -83,19 +83,6 @@ class SettingsTab(Container):
                             disabled=True,
                         )
 
-                # API Key (shown in both modes)
-                with Container(classes="form_group"):
-                    yield Label("API Key:", classes="form_label")
-                    yield Input(
-                        placeholder="Enter your API key",
-                        password=True,
-                        id="api_key_input",
-                        classes="form_input",
-                        # Disabled until model is selected (Basic) or
-                        # custom model entered (Advanced)
-                        disabled=True,
-                    )
-
                     # Timeout (seconds)
                     with Container(classes="form_group"):
                         yield Label("LLM Timeout (seconds):", classes="form_label")
@@ -103,7 +90,7 @@ class SettingsTab(Container):
                             placeholder="10–3600 (optional)",
                             id="timeout_input",
                             classes="form_input",
-                            # Enabled when API key is entered (same condition as memory)
+                            # Enabled when API key is entered
                             disabled=True,
                         )
 
@@ -128,6 +115,19 @@ class SettingsTab(Container):
                             classes="form_input",
                             disabled=True,
                         )
+
+                # API Key (shown in both modes)
+                with Container(classes="form_group"):
+                    yield Label("API Key:", classes="form_label")
+                    yield Input(
+                        placeholder="Enter your API key",
+                        password=True,
+                        id="api_key_input",
+                        classes="form_input",
+                        # Disabled until model is selected (Basic) or
+                        # custom model entered (Advanced)
+                        disabled=True,
+                    )
 
                 # Memory Condensation
                 with Container(classes="form_group"):

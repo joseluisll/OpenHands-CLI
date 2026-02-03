@@ -332,9 +332,15 @@ class SettingsScreen(ModalScreen):
             # Memory Condensation: enabled when API key is provided
             # or when there's an existing API key in the agent
             self.memory_select.disabled = not (api_key or self._has_existing_api_key())
-            self.timeout_input.disabled = self.memory_select.disabled
-            self.max_tokens_input.disabled = self.memory_select.disabled
-            self.max_size_input.disabled = self.memory_select.disabled
+
+            # Advanced LLM settings (timeout, max_tokens, max_size):
+            # Only enabled in Advanced mode and when API key is provided
+            advanced_settings_enabled = is_advanced_mode and (
+                api_key or self._has_existing_api_key()
+            )
+            self.timeout_input.disabled = not advanced_settings_enabled
+            self.max_tokens_input.disabled = not advanced_settings_enabled
+            self.max_size_input.disabled = not advanced_settings_enabled
 
         except Exception:
             # Silently handle errors during initialization
