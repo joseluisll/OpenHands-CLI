@@ -321,7 +321,7 @@ class CollapsibleNavigationMixin:
 
         # Get all collapsibles as a list for index-based navigation
         main_display = self.query_one("#main_display")
-        collapsibles = list(main_display.query(Collapsible))  # type: ignore[union-attr]
+        collapsibles = list(main_display.query(Collapsible))
         if not collapsibles:
             return
 
@@ -329,7 +329,7 @@ class CollapsibleNavigationMixin:
         try:
             current_index = collapsibles.index(event.collapsible)
         except ValueError:
-            # Collapsible not in list (shouldn't happen, but be safe)
+            # Collapsible not in list (this shouldn't happen)
             return
 
         # Calculate target index
