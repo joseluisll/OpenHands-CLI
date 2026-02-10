@@ -108,7 +108,7 @@ class SettingsFormData(BaseModel):
         if v is None:
             return None
         if isinstance(v, int):
-            return v if v > 0 else None
+            return v if v > 30 else None
         if isinstance(v, str):
             v = v.strip()
             if v == "":
