@@ -195,7 +195,8 @@ class Collapsible(Widget):
         width: 1fr;
         height: auto;
         background: $background;
-        padding-bottom: 1;
+        margin-top: 1;
+        margin-bottom: 1;
         padding-left: 1;
 
         &:focus-within {
@@ -302,7 +303,7 @@ class CollapsibleNavigationMixin:
 
     Apps that contain Collapsible widgets can use this mixin to handle
     arrow key navigation between cells. The app must have a container
-    with id="main_display" containing the Collapsible widgets.
+    with id="scroll_view" containing the Collapsible widgets.
 
     Usage:
         class MyApp(CollapsibleNavigationMixin, App):
@@ -320,8 +321,8 @@ class CollapsibleNavigationMixin:
         event.stop()
 
         # Get all collapsibles as a list for index-based navigation
-        main_display = self.query_one("#main_display")
-        collapsibles = list(main_display.query(Collapsible))
+        scroll_view = self.query_one("#scroll_view")
+        collapsibles = list(scroll_view.query(Collapsible))  # type: ignore[union-attr]
         if not collapsibles:
             return
 

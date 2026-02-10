@@ -92,7 +92,6 @@ class ConversationVisualizer(ConversationVisualizerBase):
         self,
         container: "VerticalScroll",
         app: "OpenHandsApp",
-        skip_user_messages: bool = False,
         name: str | None = None,
     ):
         """Initialize the visualizer.
@@ -107,7 +106,6 @@ class ConversationVisualizer(ConversationVisualizerBase):
         super().__init__()
         self._container = container
         self._app = app
-        self._skip_user_messages = skip_user_messages
         self._name = name
         # Store the main thread ID for thread safety checks
         self._main_thread_id = threading.get_ident()
@@ -141,7 +139,6 @@ class ConversationVisualizer(ConversationVisualizerBase):
         return ConversationVisualizer(
             container=self._container,
             app=self._app,
-            skip_user_messages=self._skip_user_messages,
             name=agent_id,
         )
 
@@ -245,22 +242,12 @@ class ConversationVisualizer(ConversationVisualizerBase):
         plan_panel.toggle()
 
     def _get_agent_model(self) -> str | None:
-        """Get the agent's model name from the conversation runner.
+        """Get the agent's model name from the conversation state.
 
         Returns:
             The agent model name or None if not available.
         """
-        try:
-            if (
-                self._app.conversation_runner
-                and self._app.conversation_runner.conversation
-                and hasattr(self._app.conversation_runner.conversation, "agent")
-                and self._app.conversation_runner.conversation.agent  # type: ignore[union-attr]
-            ):
-                return self._app.conversation_runner.conversation.agent.llm.model  # type: ignore[union-attr]
-        except Exception:
-            pass
-        return None
+        return self._app.conversation_state.agent_model
 
     def on_event(self, event: Event) -> None:
         """Main event handler that creates widgets for events."""
@@ -319,6 +306,27 @@ class ConversationVisualizer(ConversationVisualizerBase):
         self._container.mount(widget)
         # Automatically scroll to the bottom to show the newly added widget
         self._container.scroll_end(animate=False)
+
+    def render_user_message(self, content: str) -> None:
+        """Render a user message to the UI.
+
+        Dismisses any pending feedback widgets before rendering the user message.
+
+        Args:
+            content: The user's message text to display.
+        """
+        from textual.widgets import Static
+
+        from openhands_cli.tui.utils.critic.feedback import CriticFeedbackWidget
+
+        # Dismiss pending feedback widgets (user chose to continue instead of rating)
+        for widget in self._container.query(CriticFeedbackWidget):
+            widget.remove()
+
+        user_message_widget = Static(
+            f"> {content}", classes="user-message", markup=False
+        )
+        self._run_on_main_thread(self._add_widget_to_ui, user_message_widget)
 
     def _update_widget_in_ui(
         self, collapsible: Collapsible, new_title: str, new_content: str
@@ -590,13 +598,40 @@ class ConversationVisualizer(ConversationVisualizerBase):
             border_color=border_color,
         )
 
+    def _create_system_prompt_collapsible(
+        self, event: SystemPromptEvent
+    ) -> Collapsible:
+        """Create a collapsible widget showing the system prompt from SystemPromptEvent.
+
+        This displays the full system prompt content in a collapsible widget,
+        matching ACP's display format. The title shows the number of tools loaded.
+
+        Args:
+            event: The SystemPromptEvent containing tools and system prompt
+
+        Returns:
+            A Collapsible widget showing the system prompt
+        """
+        # Build the collapsible content - show system prompt like ACP does
+        content = str(event.visualize.plain)
+
+        # Get tool count for title
+        tool_count = len(event.tools) if event.tools else 0
+        title = (
+            f"Loaded: {tool_count} tool{'s' if tool_count != 1 else ''}, system prompt"
+        )
+
+        return self._make_collapsible(content, title, event)
+
     def _create_event_widget(self, event: Event) -> "Widget | None":
         """Create a widget for the event - either plain text or collapsible."""
         content = event.visualize
 
-        # Don't emit system prompt in CLI
+        # Handle SystemPromptEvent - create a collapsible showing the system prompt
+        # Note: Loaded resources (skills, hooks, tools, MCPs) are displayed at startup
+        # in _initialize_main_ui(). This collapsible shows the full system prompt.
         if isinstance(event, SystemPromptEvent):
-            return None
+            return self._create_system_prompt_collapsible(event)
         # Don't emit condensation request events (internal events)
         elif isinstance(event, CondensationRequest):
             return None
@@ -627,7 +662,7 @@ class ConversationVisualizer(ConversationVisualizerBase):
                 return None
 
             # Skip direct user messages (they are displayed separately in the UI)
-            # This applies both when skip_user_messages is set, and for user messages
+            # This applies for user messages
             # without a sender in delegation context
             if event.llm_message.role == "user" and not event.sender:
                 return None
@@ -681,11 +716,8 @@ class ConversationVisualizer(ConversationVisualizerBase):
 
         agent_prefix = self._get_agent_prefix()
 
-        # Don't emit system prompt in CLI
-        if isinstance(event, SystemPromptEvent):
-            return None
         # Don't emit condensation request events (internal events)
-        elif isinstance(event, CondensationRequest):
+        if isinstance(event, CondensationRequest):
             return None
         elif isinstance(event, ActionEvent):
             # Build title using new format with agent prefix
